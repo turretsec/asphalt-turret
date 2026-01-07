@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "asphalt-turret-engine"
+version = "0.1.0"
+description = "Core business logic for ASPHALT-TURRET dashcam management"
+readme = "README.md"
+requires-python = ">=3.12"
+license = {text = "MIT"}
+authors = [
+    {name = "Ryan Moore", email = "me@ryanmoore.xyz"}
+]
+
+dependencies = [
+    "sqlalchemy==2.0.45",
+    "alembic==1.17.2",
+    "pydantic==2.12.5",
+    "pydantic_settings==2.12.0",
+    "python-dotenv==1.2.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "-v",
+]
