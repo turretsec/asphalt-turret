@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import ProgressSpinner from "primevue/progressspinner";
 import { computed, ref, watch } from "vue";
-import { API_BASE } from "../api/client";
-import type { Clip, PlayableMedia } from "../api/types";
+import { API_BASE } from "../../api/client";
+import type { PlayableMedia } from "../../api/types";
 
 const props = defineProps<{
   media: PlayableMedia | null;

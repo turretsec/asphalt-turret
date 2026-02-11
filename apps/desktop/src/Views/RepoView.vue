@@ -1,7 +1,6 @@
 <script lang="ts" setup>
-import Tools from '../components/Tools.vue';
-import ClipBrowser from '../components/ClipBrowser.vue';
-import { ref, computed, onMounted, watch } from 'vue';
+import ClipBrowser from '../components/clips/ClipBrowser.vue';
+import { ref, computed, onMounted } from 'vue';
 import { listRepoClips } from '../api/clips';
 import type { Clip, PlayableMedia, CameraEnum, ModeEnum, DatePreset } from '../api/types';
 
@@ -26,7 +25,6 @@ defineExpose({
   load
 });
 
-
 const clips = ref<Clip[]>([]);
 const loading = ref(false);
 const error = ref<string | null>(null);
@@ -36,7 +34,7 @@ const selectedId = computed<number | null>(() =>
   selectedMedia.value ? selectedMedia.value.data.id : null
 );
 
-// Helper functions for date filtering (same pattern as SDFileList)
+// Helper functions for date filtering (same pattern as SDFileBrowser)
 function startOfDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
@@ -138,6 +136,7 @@ async function load(): Promise<void> {
 onMounted(async () => {
   await load();
 });
+
 </script>
 
 <template>

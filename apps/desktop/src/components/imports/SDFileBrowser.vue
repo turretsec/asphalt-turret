@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
-import { ref, computed, onMounted, reactive, watch } from 'vue';
-import { listSDCardFiles, listSDCards } from '../api/sd_card';
-import type { SDFile, SDCard, DatePreset, ImportFilters } from '../api/types';
-import { parseModeFromPath, parseDateFromFilename } from '../utils/file_parser';
-
+import { ref, computed, onMounted, watch } from 'vue';
+import { listSDCardFiles, listSDCards } from '../../api/sd_card';
+import type { SDFile, SDCard, DatePreset, ImportFilters } from '../../api/types';
+import { parseModeFromPath, parseDateFromFilename } from '../../utils/file_parser';
 
 const sdCards = ref<SDCard[]>([]);
 const sdFiles = ref<SDFile[]>([]);
@@ -23,10 +22,6 @@ const props = defineProps<{
   filterMode?: string;
   filterDate?: string;
 }>();
-
-watch(() => props.filters, (newFilters, oldFilters) => {
-  console.log('SDFileList filters changed:', newFilters);
-}, { deep: true });
 
 const emit = defineEmits<{
   (e: "select", payload: { file: SDFile; volumeUid: string }): void;
@@ -80,17 +75,6 @@ function inDateWindow(fileDate: Date | null, preset: DatePreset, range: [Date, D
   return true;
 }
 
-const filteredSDFiles = computed(() => {
-  const q = props.query.trim().toLowerCase();
-  if (!q) return sdFiles.value;
-  console.log('Filtering files with query:', q);
-  console.log('Total files before filtering:', sdFiles.value.length);
-  
-  return sdFiles.value.filter((f) =>
-    f.rel_path.toLowerCase().includes(q)
-  );
-});
-
 // Click row to preview
 function onRowClick(event: any) {
   if (event.originalEvent.target.closest('.p-checkbox')) {
@@ -108,17 +92,13 @@ function rowClass(data: SDFile) {
   return previewFile.value?.id === data.id ? 'previewed-row' : '';
 }
 
-const connectedCards = computed(() => 
-  sdCards.value.filter(card => card.is_connected)
-);
-
 async function loadFilesForCard(volumeUid: string): Promise<void> {
   filesLoading.value = true;
   
   try {
     const files = await listSDCardFiles(volumeUid);
     sdFiles.value = files;
-    console.log(`Loaded ${files.length} files from ${volumeUid}`);  // ← Fixed: () not ``
+    console.log(`Loaded ${files.length} files from ${volumeUid}`);
   } catch (e) {
     console.error("Failed to load files:", e);
   } finally {
@@ -254,44 +234,3 @@ onMounted(async () => {
   background-color: #a5f3fc;
 }
 </style>
-
-
-
-
-
-
-
-
-
-
-
-
-
-<!--
-    <DataTable v-else :value="sdCards" paginator :rows="50" striped>
-      <Column field="volume_label" header="Label">
-        <template #body="{ data }">
-          {{ data.volume_label || data.volume_uid }}
-        </template>
-      </Column>
-      
-      <Column field="is_connected" header="Status">
-        <template #body="{ data }">
-          <span v-if="data.is_connected">🟢 Connected</span>
-          <span v-else>⚪ Offline</span>
-        </template>
-      </Column>
-      
-      <Column field="drive_root" header="Location">
-        <template #body="{ data }">
-          {{ data.drive_root || 'N/A' }}
-        </template>
-      </Column>
-      
-      <Column field="pending_files" header="Pending">
-        <template #body="{ data }">
-          {{ data.pending_files }} / {{ data.total_files }}
-        </template>
-      </Column>
-    </DataTable>
--->

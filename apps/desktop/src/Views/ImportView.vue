@@ -1,6 +1,5 @@
 <script lang="ts" setup>
-import SDFileTools from '../components/SDFileTools.vue';
-import SDFileList from '../components/SDFileList.vue';
+import SDFileBrowser from '../components/imports/SDFileBrowser.vue';
 import { ref, computed } from 'vue';
 import type { SDFile, PlayableMedia, ImportFilters } from '../api/types';
 
@@ -31,10 +30,7 @@ function onSelectionChange(files: SDFile[]) {
 </script>
 
 <template>
-  <SDFileTools 
-    v-model:query="query"
-  />
-  <SDFileList
+  <SDFileBrowser
     :selectedId="selectedId"
     :query="query"
     :filters="sdFileFilters"

@@ -3,8 +3,8 @@ import MultiSelect from "primevue/multiselect";
 import DatePicker from 'primevue/datepicker';
 import Select from "primevue/select";
 import InputText from "primevue/inputtext";
-import { ModeEnum } from "../api/types";
-import type { DatePreset } from "../api/types";
+import { ModeEnum } from "../../api/types";
+import type { DatePreset } from "../../api/types";
 
 // SHARED filters
 const query = defineModel<string>("query");

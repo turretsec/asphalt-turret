@@ -3,7 +3,7 @@ import Button from 'primevue/button';
 import Checkbox from 'primevue/checkbox';
 import Skeleton from 'primevue/skeleton';
 import { ref, watch } from 'vue';
-import type { Clip } from '../api/types';
+import type { Clip } from '../../api/types';
 
 const props = defineProps<{
   clips: Clip[];
