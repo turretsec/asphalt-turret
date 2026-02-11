@@ -4,6 +4,7 @@ import Checkbox from 'primevue/checkbox';
 import Skeleton from 'primevue/skeleton';
 import { ref, watch } from 'vue';
 import type { Clip } from '../../api/types';
+import { getClipThumbnailUrl } from '../../api/thumbnails';
 
 const props = defineProps<{
   clips: Clip[];
@@ -45,6 +46,14 @@ function isPreviewedClip(clip: Clip): boolean {
 function isCheckedClip(clip: Clip): boolean {
   return selectedClips.value.some(c => c.id === clip.id);
 }
+
+// Thumbnail loading state per clip
+const thumbnailErrors = ref<Set<number>>(new Set());
+
+function onThumbnailError(clipId: number) {
+  thumbnailErrors.value.add(clipId);
+}
+
 </script>
 
 <template>
@@ -109,6 +118,24 @@ function isCheckedClip(clip: Clip): boolean {
           <div class="text-sm truncate">{{ c.original_filename }}</div>
           <div class="text-xs opacity-70 mt-1">
             {{ new Date(c.imported_at).toLocaleString() }}
+          </div>
+        </div>
+
+        <!-- Thumbnail -->
+        <div class="flex-shrink-0 w-28 h-16 bg-surface-950 rounded overflow-hidden">
+          <img
+            v-if="!thumbnailErrors.has(c.id)"
+            :src="getClipThumbnailUrl(c.id)"
+            :alt="c.original_filename"
+            class="w-full h-full object-cover"
+            @error="onThumbnailError(c.id)"
+            loading="lazy"
+          />
+          <div
+            v-else
+            class="w-full h-full flex items-center justify-center text-surface-600"
+          >
+            <i class="pi pi-video text-2xl"></i>
           </div>
         </div>
       </li>

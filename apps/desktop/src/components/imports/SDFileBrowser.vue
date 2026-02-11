@@ -5,6 +5,7 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { listSDCardFiles, listSDCards } from '../../api/sd_card';
 import type { SDFile, SDCard, DatePreset, ImportFilters } from '../../api/types';
 import { parseModeFromPath, parseDateFromFilename } from '../../utils/file_parser';
+import { getSDFileThumbnailUrl } from '../../api/thumbnails';
 
 const sdCards = ref<SDCard[]>([]);
 const sdFiles = ref<SDFile[]>([]);
@@ -14,6 +15,7 @@ const loading = ref(false);
 const filesLoading = ref(false);
 const error = ref<string | null>(null);
 const currentVolumeUid = ref<string>('');
+const thumbnailErrors = ref<Set<number>>(new Set());
 
 const props = defineProps<{
   selectedId: number | null;
@@ -28,6 +30,10 @@ const emit = defineEmits<{
   (e: "load"): void;
   (e: "selection-change", files: SDFile[]): void;
 }>();
+
+function onThumbnailError(fileId: number) {
+  thumbnailErrors.value.add(fileId);
+}
 
 // Watch for selection changes and emit
 watch(selectedSDFiles, (newSelection) => {
@@ -189,6 +195,28 @@ onMounted(async () => {
         :rowClass="rowClass"
     >
         <Column selectionMode="multiple" style="width: 3em" />
+        <!-- Thumbnail Column -->
+        <Column header="Preview" style="width: 8em">
+          <template #body="{ data }">
+            <div class="w-20 h-12 bg-surface-950 rounded overflow-hidden">
+              <img
+                v-if="!thumbnailErrors.has(data.id)"
+                :src="getSDFileThumbnailUrl(currentVolumeUid, data.id)"
+                :alt="data.rel_path"
+                class="w-full h-full object-cover"
+                @error="onThumbnailError(data.id)"
+                loading="lazy"
+              />
+              <div
+                v-else
+                class="w-full h-full flex items-center justify-center text-surface-600"
+              >
+                <i class="pi pi-video"></i>
+              </div>
+            </div>
+          </template>
+        </Column>
+        
         <Column field="rel_path" header="File Path" />
         <Column field="size_bytes" header="Size">
         <template #body="{ data }">

@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Optional
+from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -11,6 +12,10 @@ from asphalt_turret_engine.db.enums import SDFileImportStateEnum, ModeEnum
 from asphalt_turret_engine.db.models.sd_file import SDFile
 import asphalt_turret_engine.db.crud.sd_card as sd_card_crud
 import asphalt_turret_engine.db.crud.sd_file as sd_file_crud
+
+from fastapi.responses import FileResponse
+from asphalt_turret_engine.services.thumbnail_service import get_or_generate_thumbnail
+
 
 router = APIRouter(prefix="/sd-card", tags=["sd-card"])
 
@@ -281,3 +286,58 @@ def format_size(size_bytes: int) -> str:
         size /= 1024
     
     return f"{size:.2f} PB"
+
+@router.get("/{volume_uid}/files/{file_id}/thumbnail")
+def get_sd_file_thumbnail(
+    volume_uid: str,
+    file_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Get thumbnail for an SD card file.
+    
+    Generates thumbnail if it doesn't exist yet.
+    Returns JPEG image.
+    """
+    # Get SD card
+    card = sd_card_crud.get_by_volume_uid(db, volume_uid)
+    if not card:
+        raise HTTPException(status_code=404, detail=f"SD card {volume_uid} not found")
+    
+    # Get SD file
+    sd_file = db.get(SDFile, file_id)
+    if not sd_file or sd_file.sd_card_id != card.id:
+        raise HTTPException(status_code=404, detail=f"File {file_id} not found on this SD card")
+    
+    # Find SD card mount point
+    from asphalt_turret_engine.adapters.volumes import list_removable_volumes
+    volumes = list_removable_volumes()
+    
+    sd_card_path = None
+    for volume in volumes:
+        if volume.get("volume_uid") == volume_uid:
+            sd_card_path = Path(volume["drive_root"])
+            break
+    
+    if not sd_card_path:
+        raise HTTPException(status_code=404, detail=f"SD card {volume_uid} not currently mounted")
+    
+    # Get video file path
+    video_path = sd_card_path / sd_file.rel_path
+    
+    if not video_path.exists():
+        raise HTTPException(status_code=404, detail=f"Video file not found: {sd_file.rel_path}")
+    
+    try:
+        # Get or generate thumbnail
+        thumbnail_path = get_or_generate_thumbnail(video_path)
+        
+        # Return thumbnail as image
+        return FileResponse(
+            thumbnail_path,
+            media_type="image/jpeg",
+            headers={"Cache-Control": "public, max-age=86400"}
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate thumbnail: {str(e)}")

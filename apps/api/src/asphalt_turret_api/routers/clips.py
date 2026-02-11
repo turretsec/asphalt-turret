@@ -1,5 +1,5 @@
 import shutil
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, logger
 from fastapi.responses import FileResponse, StreamingResponse
 
 from httpx import get
@@ -15,6 +15,7 @@ from asphalt_turret_api.schemas.clip import ClipResponse, DeleteClipsResponse, D
 from asphalt_turret_engine.db.models import Clip
 from asphalt_turret_engine.db.crud.clip import get_clips, get_clip_by_id
 from asphalt_turret_engine.config import settings
+from asphalt_turret_engine.services.thumbnail_service import get_or_generate_thumbnail
 
 from asphalt_turret_api.util.streaming import _stream_video_file
 
@@ -263,3 +264,40 @@ def export_clips(
         message=f"Exported {exported} clips" + (f", {failed} failed" if failed > 0 else ""),
         destination=str(dest_path)
     )
+
+@router.get("/{clip_id}/thumbnail")
+def get_clip_thumbnail(
+    clip_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Get thumbnail for a clip.
+    
+    Generates thumbnail if it doesn't exist yet.
+    Returns JPEG image.
+    """
+    # Get clip from database
+    clip = db.get(Clip, clip_id)
+    
+    if not clip:
+        raise HTTPException(status_code=404, detail=f"Clip {clip_id} not found")
+    
+    # Get video file path
+    video_path = settings.repository_dir / clip.repo_path
+    
+    if not video_path.exists():
+        raise HTTPException(status_code=404, detail=f"Video file not found: {clip.repo_path}")
+    
+    try:
+        # Get or generate thumbnail
+        thumbnail_path = get_or_generate_thumbnail(video_path)
+        
+        # Return thumbnail as image
+        return FileResponse(
+            thumbnail_path,
+            media_type="image/jpeg",
+            headers={"Cache-Control": "public, max-age=86400"}  # Cache for 24 hours
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate thumbnail: {str(e)}")

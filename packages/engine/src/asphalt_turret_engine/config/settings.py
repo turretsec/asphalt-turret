@@ -24,6 +24,22 @@ class Settings(BaseSettings):
         """Get the ffprobe executable path."""
         path = self.base_dir / "bin" / "ffprobe.exe"
         return str(path)
+    
+    # FFmpeg executable path
+    @property
+    def ffmpeg_path(self) -> str:
+        """Get the ffmpeg executable path."""
+        path = self.base_dir / "bin" / "ffmpeg.exe"
+        return str(path)
+    
+    thumbnail_width: int = 320
+    thumbnail_height: int = 180
+    thumbnail_quality: int = 85
+
+    @property
+    def thumbnails_dir(self) -> Path:
+        """Directory for thumbnail cache."""
+        return self.base_dir / "data" / "thumbnails"
 
     # Database
     @property
@@ -54,5 +70,6 @@ class Settings(BaseSettings):
         self.base_dir.mkdir(parents=True, exist_ok=True)
         self.repository_dir.mkdir(parents=True, exist_ok=True)
         self.incoming_dir.mkdir(parents=True, exist_ok=True)
+        self.thumbnails_dir.mkdir(parents=True, exist_ok=True)
 
 settings = Settings()
