@@ -11,6 +11,20 @@ class Settings(BaseSettings):
     # Base directory
     base_dir: Path = get_base_dir()
 
+
+    # FFProbe configuration
+    ffprobe_timeout_s: int = 30    # Timeout for probing
+    
+    # Probe version tracking (increment when probe logic changes)
+    probe_version: int = 1
+
+    # FFProbe executable path
+    @property
+    def ffprobe_path(self) -> str:
+        """Get the ffprobe executable path."""
+        path = self.base_dir / "bin" / "ffprobe.exe"
+        return str(path)
+
     # Database
     @property
     def database_url(self) -> str:

@@ -6,6 +6,15 @@ from alembic import context
 from asphalt_turret_engine.db.base import Base
 from asphalt_turret_engine.config import settings
 
+from asphalt_turret_engine.db.models import (  # noqa: F401
+    SDCard,
+    SDFile,
+    Clip,
+    ClipSource,
+    Artifact,
+    Job,
+)
+
 # this is the Alembic Config object
 config = context.config
 
