@@ -1,43 +1,123 @@
 <script lang="ts" setup>
-
 import Tools from '../components/Tools.vue';
 import ClipBrowser from '../components/ClipBrowser.vue';
-
-import SDFileList from '../components/SDFileList.vue';
-import SDFileTree from '../components/SDFileTree.vue';
 import { ref, computed, onMounted, watch } from 'vue';
 import { listRepoClips } from '../api/clips';
-import { listSDCards } from '../api/sd_card';
-import type { Clip, SDFile, PlayableMedia } from '../api/types';
+import type { Clip, PlayableMedia, CameraEnum, ModeEnum, DatePreset } from '../api/types';
 
+// Props from Shell
+const props = defineProps<{
+  filters: {
+    modes: ModeEnum[];
+    cameras: CameraEnum[];
+    datePreset: DatePreset;
+    dateRange: [Date, Date] | null;
+  };
+  query: string;
+}>();
+
+// Emits
 const emit = defineEmits<{
   (e: "select", clip: Clip): void;
+  (e: "selection-change", clips: Clip[]): void;  // ← New!
 }>();
+
+defineExpose({
+  load
+});
+
 
 const clips = ref<Clip[]>([]);
 const loading = ref(false);
 const error = ref<string | null>(null);
 const selectedMedia = ref<PlayableMedia | null>(null);
 
-
 const selectedId = computed<number | null>(() => 
   selectedMedia.value ? selectedMedia.value.data.id : null
 );
 
-const query = ref("");
+// Helper functions for date filtering (same pattern as SDFileList)
+function startOfDay(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
 
+function endOfDay(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+}
+
+function inDateWindow(clipDate: Date | null, preset: DatePreset, range: [Date, Date] | null): boolean {
+  if (!clipDate) return false;
+
+  const now = new Date();
+  const todayStart = startOfDay(now);
+
+  if (preset === "all") return true;
+
+  if (preset === "today") {
+    return clipDate >= todayStart && clipDate <= endOfDay(now);
+  }
+
+  if (preset === "yesterday") {
+    const y = new Date(todayStart);
+    y.setDate(y.getDate() - 1);
+    return clipDate >= y && clipDate <= endOfDay(y);
+  }
+
+  if (preset === "7d") {
+    const start = new Date(todayStart);
+    start.setDate(start.getDate() - 6);
+    return clipDate >= start && clipDate <= endOfDay(now);
+  }
+
+  if (preset === "custom" && range) {
+    const [from, to] = range;
+    return clipDate >= startOfDay(from) && clipDate <= endOfDay(to);
+  }
+
+  return true;
+}
+
+// Apply all filters
 const filteredClips = computed(() => {
-  const q = query.value.trim().toLowerCase();
-  if (!q) return clips.value;
-  
-  return clips.value.filter((c) =>
-    c.original_filename.toLowerCase().includes(q) ||
-    c.file_hash.toLowerCase().includes(q)
-  );
+  const q = props.query.trim().toLowerCase();
+  const modes = props.filters.modes;
+  const cameras = props.filters.cameras;
+
+  return clips.value.filter((c) => {
+    // Search query
+    if (q && !(
+      c.original_filename.toLowerCase().includes(q) ||
+      c.file_hash.toLowerCase().includes(q)
+    )) {
+      return false;
+    }
+
+    // Mode filter
+    if (modes.length > 0 && !modes.includes(c.mode)) {
+      return false;
+    }
+
+    // Camera filter
+    if (cameras.length > 0 && !cameras.includes(c.camera)) {
+      return false;
+    }
+
+    // Date filter
+    const clipDate = c.recorded_at ? new Date(c.recorded_at) : null;
+    if (!inDateWindow(clipDate, props.filters.datePreset, props.filters.dateRange)) {
+      return false;
+    }
+
+    return true;
+  });
 });
 
 function onSelectClip(clip: Clip) {
-    emit("select", clip);
+  emit("select", clip);
+}
+
+function onSelectionChange(clips: Clip[]) {
+  emit("selection-change", clips);  // ← Bubble up to Shell
 }
 
 async function load(): Promise<void> {
@@ -61,13 +141,13 @@ onMounted(async () => {
 </script>
 
 <template>
-    <Tools v-model:query="query" />
-    <ClipBrowser
-        :clips="filteredClips"
-        :loading="loading"
-        :error="error"
-        :selectedId="selectedId"
-        @select="onSelectClip"
-        @load="load"
-    />
+  <ClipBrowser
+    :clips="filteredClips"
+    :loading="loading"
+    :error="error"
+    :selectedId="selectedId"
+    @select="onSelectClip"
+    @selection-change="onSelectionChange"
+    @load="load"
+  />
 </template>

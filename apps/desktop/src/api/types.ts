@@ -3,6 +3,10 @@ export interface Clip {
   file_hash: string;
   original_filename: string;
   imported_at: string;
+  recorded_at: string;
+  camera: CameraEnum;
+  mode: ModeEnum;
+  repo_path: string;
 }
 
 export interface Volume {
@@ -89,4 +93,34 @@ export interface ImportResponse {
   job_id: number;
   total_files: number;
   message: string;
+}
+
+export enum CameraEnum {
+  FRONT = "front",
+  REAR = "rear",
+  UNKNOWN = "unknown"
+}
+
+
+
+export interface DeleteClipsRequest {
+  clip_ids: number[];
+}
+
+export interface DeleteClipsResponse {
+  deleted_count: number;
+  failed_count: number;
+  message: string;
+}
+
+export interface ExportClipsRequest {
+  clip_ids: number[];
+  destination_dir: string;
+}
+
+export interface ExportClipsResponse {
+  exported_count: number;
+  failed_count: number;
+  message: string;
+  destination: string;
 }

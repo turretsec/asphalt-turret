@@ -22,3 +22,29 @@ class ClipResponse(BaseModel):
     metadata_status: MetadataStatusEnum
     metadata_error: str | None
     metadata_json: str | None
+
+
+
+class DeleteClipsRequest(BaseModel):
+    """Request to delete multiple clips."""
+    clip_ids: list[int]
+
+
+class DeleteClipsResponse(BaseModel):
+    """Response after deleting clips."""
+    deleted_count: int
+    failed_count: int
+    message: str
+
+class ExportClipsRequest(BaseModel):
+    """Request to export clips to a directory."""
+    clip_ids: list[int]
+    destination_dir: str  # Where to copy the files
+
+
+class ExportClipsResponse(BaseModel):
+    """Response after exporting clips."""
+    exported_count: int
+    failed_count: int
+    message: str
+    destination: str
