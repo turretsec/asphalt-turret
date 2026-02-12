@@ -14,6 +14,11 @@ export function useSDFiles() {
   const error = ref<string | null>(null);
   const currentVolumeUid = ref<string>('');
 
+    // Computed: available cards
+  const availableCards = computed(() => sdCards.value);
+  const connectedCards = computed(() => sdCards.value.filter(c => c.is_connected));
+  const hasMultipleCards = computed(() => connectedCards.value.length > 1);
+
   // Filters
   const filters = reactive({
     modes: [] as ModeEnum[],
@@ -21,6 +26,8 @@ export function useSDFiles() {
     datePreset: "all" as DatePreset,
     dateRange: null as [Date, Date] | null,
   });
+
+  
 
   const query = ref("");
 
@@ -102,10 +109,16 @@ export function useSDFiles() {
       const data = await listSDCards();
       sdCards.value = data;
       
-      const connected = data.find(card => card.is_connected);
-      if (connected) {
-        currentVolumeUid.value = connected.volume_uid;
-        await loadFilesForCard(connected.volume_uid);
+      // If no current card selected, pick first connected one
+      if (!currentVolumeUid.value) {
+        const connected = data.find(card => card.is_connected);
+        if (connected) {
+          currentVolumeUid.value = connected.volume_uid;
+          await loadFilesForCard(connected.volume_uid);
+        }
+      } else {
+        // Reload current card's files
+        await loadFilesForCard(currentVolumeUid.value);
       }
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to load SD cards';
@@ -123,9 +136,19 @@ export function useSDFiles() {
       console.log(`Loaded ${files.length} files from ${volumeUid}`);
     } catch (e) {
       console.error("Failed to load files:", e);
+      sdFiles.value = [];
     } finally {
       filesLoading.value = false;
     }
+  }
+
+  // Switch to different card
+  async function switchToCard(volumeUid: string) {
+    if (volumeUid === currentVolumeUid.value) return;
+    
+    currentVolumeUid.value = volumeUid;
+    clearSelection(); // Clear selection when switching cards
+    await loadFilesForCard(volumeUid);
   }
 
   async function importSelected(): Promise<{ job_id: number; total_files: number; message: string }> {
@@ -172,10 +195,14 @@ export function useSDFiles() {
     currentVolumeUid,
     filters,
     query,
+    availableCards,
+    connectedCards,
+    hasMultipleCards,
 
     // Actions
     loadSDCards,
     loadFilesForCard,
+    switchToCard,
     importSelected,
     setSelection,
     clearSelection,

@@ -1,21 +1,24 @@
 <script lang="ts" setup>
 import SDFileBrowser from '../components/imports/SDFileBrowser.vue';
+import VolumeSelector from '../components/imports/VolumeSelector.vue';
 import JobProgress from '../components/shared/JobProgress.vue';
 import { ref, computed } from 'vue';
-import type { SDFile, PlayableMedia, ImportFilters } from '../api/types';
+import type { SDFile, PlayableMedia, ImportFilters, SDCard } from '../api/types';
 
 const emit = defineEmits<{
   (e: "select", payload: { file: SDFile; volumeUid: string }): void;
   (e: "selection-change", files: SDFile[]): void;
   (e: "import"): void;
   (e: "import-complete"): void;
-  (e: "import-dismiss"): void;  // ← NEW
+  (e: "import-dismiss"): void;
+  (e: "volume-change", volumeUid: string): void;
 }>();
 
 const props = defineProps<{
   sdFileFilters: ImportFilters;
   currentVolumeUid: string;
-  currentImportJobId?: number | null;  // ← NEW
+  currentImportJobId?: number | null;
+  availableCards: SDCard[];
 }>();
 
 const selectedMedia = ref<PlayableMedia | null>(null);
@@ -40,10 +43,25 @@ function onImportComplete() {
 function onImportDismiss() {
   emit("import-dismiss");
 }
+
+function onVolumeChange(volumeUid: string) {
+  emit("volume-change", volumeUid);
+}
 </script>
 
 <template>
   <div class="h-full w-full relative">
+    <!-- Volume Selector Header (if multiple cards) -->
+    <div 
+      v-if="availableCards.filter(c => c.is_connected).length > 0"
+      class="p-3 border-b border-surface-800"
+    >
+      <VolumeSelector
+        :cards="availableCards"
+        :currentVolumeUid="currentVolumeUid"
+        @change="onVolumeChange"
+      />
+    </div>
     <!-- Job Progress Indicator (floating, centered over this view) -->
     <div 
       v-if="currentImportJobId"

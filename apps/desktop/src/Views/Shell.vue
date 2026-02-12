@@ -196,6 +196,10 @@ function onImportDismiss() {
   // Don't reload - just hide the indicator
 }
 
+async function handleVolumeChange(volumeUid: string) {
+  await sdFilesManager.switchToCard(volumeUid);
+}
+
 watch(mode, async () => {
   selectedMedia.value = null;
   clipsManager.query.value = "";
@@ -297,10 +301,11 @@ onMounted(async () => {
               @selection-change="sdFilesManager.setSelection"
               @import-complete="onImportComplete"
               @import-dismiss="onImportDismiss"
-              @import="handleImport"
+              @volume-change="handleVolumeChange"
               :sdFileFilters="sdFilesManager.filters"
               :currentVolumeUid="sdFilesManager.currentVolumeUid.value"
               :currentImportJobId="currentImportJobId"
+              :availableCards="sdFilesManager.availableCards.value"
             />
 
             <SettingsView v-else />
