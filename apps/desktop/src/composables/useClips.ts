@@ -8,6 +8,7 @@ export function useClips() {
   const selectedClips = ref<Clip[]>([]);
   const loading = ref(false);
   const error = ref<string | null>(null);
+  const sortBy = ref<string>('date-desc');
 
   // Filters
   const filters = reactive({
@@ -64,11 +65,11 @@ export function useClips() {
 
   const filteredClips = computed(() => {
     const q = query.value.trim().toLowerCase();
-    const modes = filters.modes;  // ← No .value needed!
+    const modes = filters.modes;
     const cameras = filters.cameras;
 
-    return clips.value.filter((c) => {
-      // ... same filtering logic but use filters.modes instead of filters.value.modes ...
+    let result = clips.value.filter((c) => {
+
       if (modes.length > 0 && !modes.includes(c.mode)) {
         return false;
       }
@@ -84,6 +85,25 @@ export function useClips() {
 
       return true;
     });
+
+    // Sorting
+
+    result.sort((a, b) => {
+      switch (sortBy.value) {
+        case 'date-desc':
+          return new Date(b.imported_at).getTime() - new Date(a.imported_at).getTime();
+        case 'date-asc':
+          return new Date(a.imported_at).getTime() - new Date(b.imported_at).getTime();
+        case 'name-asc':
+          return a.original_filename.localeCompare(b.original_filename);
+        case 'name-desc':
+          return b.original_filename.localeCompare(a.original_filename);
+        default:
+          return 0;
+      }
+    });
+
+    return result;
   });
 
   // Actions
@@ -138,6 +158,7 @@ export function useClips() {
     error,
     filters,
     query,
+    sortBy,
 
     // Actions
     load,

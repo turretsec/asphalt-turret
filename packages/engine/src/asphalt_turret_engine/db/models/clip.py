@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import Enum, Float, Integer, String, DateTime, Text, text, func
+from sqlalchemy import BigInteger, Enum, Float, Integer, String, DateTime, Text, text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from asphalt_turret_engine.db.base import Base
@@ -34,10 +34,12 @@ class Clip(Base):
 
     recorded_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     duration_s: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    size_bytes: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
     codec: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     width: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     height: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     fps: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    size_bytes: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
     imported_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

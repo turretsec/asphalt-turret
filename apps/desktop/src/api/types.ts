@@ -1,12 +1,30 @@
 export interface Clip {
   id: number;
   file_hash: string;
-  original_filename: string;
-  imported_at: string;
-  recorded_at: string;
+  repo_path: string;
+  original_filename: string | null;
   camera: CameraEnum;
   mode: ModeEnum;
-  repo_path: string;
+  recorded_at: string | null;
+  duration_s: number | null;
+  size_bytes: number | null;
+  codec: string | null;
+  width: number | null;
+  height: number | null;
+  fps: number | null;
+  imported_at: string;
+  probe_version: number | null;
+  probed_at: string | null;
+  metadata_status: MetadataStatusEnum;
+  metadata_error: string | null;
+  metadata_json: string | null;
+}
+
+export enum MetadataStatusEnum {
+  PENDING = "pending",
+  EXTRACTED = "extracted",
+  FAILED = "failed",
+  PARTIAL = "partial",
 }
 
 export interface Volume {

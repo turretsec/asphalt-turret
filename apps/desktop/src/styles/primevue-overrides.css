@@ -1,0 +1,36 @@
+@layer primevue {
+  :root {
+    /* Surfaces */
+    --p-surface-0: #0f1115;
+    --p-surface-50: #12141a;
+    --p-surface-100: #161a22;
+    --p-surface-200: #1c212c;
+
+    /* Text */
+    --p-text-color: #e6e8ee;
+    --p-text-muted-color: #a8b0bf;
+
+    /* Borders */
+    --p-content-border-color: #262c36;
+
+    /* Primary 
+    --p-primary-color: #5eead4;
+    --p-primary-contrast-color: #0b0d10;*/
+
+    /* Radius */
+    --p-border-radius: 6px;
+
+    /* Focus ring */
+    --p-focus-ring: 0 0 0 2px rgba(94, 234, 212, 0.25);
+
+    /* Form fields 
+    --p-form-field-background: var(--p-surface-50);
+    --p-form-field-border-color: var(--p-content-border-color);
+    --p-form-field-hover-border-color: #343c49;
+    --p-form-field-focus-border-color: var(--p-primary-color);
+
+    --p-form-field-color: var(--p-text-color);
+    --p-form-field-placeholder-color: var(--p-text-muted-color);
+    --p-form-field-icon-color: var(--p-text-muted-color);*/
+  }
+}

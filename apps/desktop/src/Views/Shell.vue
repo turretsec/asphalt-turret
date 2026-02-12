@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { open } from '@tauri-apps/plugin-dialog';
 
-import Button from 'primevue/button';
 import MultiSelect from 'primevue/multiselect';
 import Splitter from 'primevue/splitter';
 import SplitterPanel from 'primevue/splitterpanel';
@@ -16,7 +15,6 @@ import MediaPlayer from '../components/shared/MediaPlayer.vue';
 import Nav from '../components/common/Nav.vue';
 import RepoView from './RepoView.vue';
 import ImportView from './ImportView.vue';
-
 import type { SDFile, PlayableMedia, Clip } from '../api/types';
 import { CameraEnum, SDFileImportState } from '../api/types';
 import { exportClips } from '../api/clips';
@@ -64,27 +62,6 @@ const stateOptions: { label: string; value: SDFileImportState }[] = [
   { label: "Pending", value: SDFileImportState.PENDING },
   { label: "Failed", value: SDFileImportState.FAILED },
 ];
-
-// Computed for repo action buttons
-const canDelete = computed(() => clipsManager.selectedClips.value.length > 0);
-const canExport = computed(() => clipsManager.selectedClips.value.length > 0);
-
-const deleteButtonLabel = computed(() => {
-  const count = clipsManager.selectedClips.value.length;
-  return count > 0 ? `Delete ${count} clip${count > 1 ? 's' : ''}` : 'Delete';
-});
-
-const exportButtonLabel = computed(() => {
-  const count = clipsManager.selectedClips.value.length;
-  return count > 0 ? `Export ${count} clip${count > 1 ? 's' : ''}` : 'Export';
-});
-
-// Computed for import action button
-const canImport = computed(() => sdFilesManager.selectedSDFiles.value.length > 0);
-const importButtonLabel = computed(() => {
-  const count = sdFilesManager.selectedSDFiles.value.length;
-  return count > 0 ? `Import ${count} file${count > 1 ? 's' : ''}` : 'Import';
-});
 
 // Delete handler
 async function handleDelete() {
@@ -188,6 +165,10 @@ async function handleImport() {
   }
 }
 
+function handleGoToImport() {
+  mode.value = 'import';
+}
+
 watch(mode, async () => {
   selectedMedia.value = null;
   clipsManager.query.value = "";
@@ -210,11 +191,12 @@ onMounted(async () => {
 <template>
   <Toast />
   <ConfirmDialog />
+  
   <div class="flex flex-row w-full h-screen">
     <aside class="w-56 border-r border-surface-800 p-2 flex flex-col">
       <Nav @select="onSelectMode" />
       
-      <!-- Import sidebar -->
+      <!-- Import sidebar (NO MORE IMPORT BUTTON) -->
       <FileToolbar
         v-if="mode === 'import'"
         class="flex-1 mt-4"
@@ -235,20 +217,11 @@ onMounted(async () => {
             size="small"
           />
         </template>
-
-        <template #actions>
-          <Button
-            :label="importButtonLabel"
-            :disabled="!canImport"
-            @click="handleImport"
-            severity="success"
-            class="flex w-full mt-2"
-            size="small"
-          />
-        </template>
+        
+        <!-- Remove the actions slot - action bar handles it now -->
       </FileToolbar>
 
-      <!-- Repo sidebar -->
+      <!-- Repo sidebar (NO MORE DELETE/EXPORT BUTTONS) -->
       <FileToolbar
         v-else-if="mode === 'repo'"
         class="flex-1 mt-4"
@@ -269,29 +242,8 @@ onMounted(async () => {
             size="small"
           />
         </template>
-
-        <template #actions>
-          <div class="flex flex-col gap-2 w-full mt-2">
-            <Button
-              :label="exportButtonLabel"
-              :disabled="!canExport"
-              @click="handleExport"
-              severity="info"
-              class="w-full"
-              size="small"
-              icon="pi pi-download"
-            />
-            <Button
-              :label="deleteButtonLabel"
-              :disabled="!canDelete"
-              @click="handleDelete"
-              severity="danger"
-              class="w-full"
-              size="small"
-              icon="pi pi-trash"
-            />
-          </div>
-        </template>
+        
+        <!-- Remove the actions slot - action bar handles it now -->
       </FileToolbar>
     </aside>
 
@@ -304,6 +256,10 @@ onMounted(async () => {
               v-if="mode === 'repo'"
               @select="onSelectClip"
               @selection-change="clipsManager.setSelection"
+              @delete-selected="handleDelete"
+              @export="handleExport"
+              @delete="handleDelete"
+              @go-to-import="handleGoToImport"
               :filters="clipsManager.filters"
               :query="clipsManager.query.value"
             />
@@ -312,9 +268,11 @@ onMounted(async () => {
               v-else
               @select="onSelectSDFile"
               @selection-change="sdFilesManager.setSelection"
+              @import="handleImport"
               :sdFileFilters="sdFilesManager.filters"
               :currentVolumeUid="sdFilesManager.currentVolumeUid.value"
             />
+
           </SplitterPanel>
           
           <SplitterPanel class="flex items-center justify-center p-2 bg-surface-950">

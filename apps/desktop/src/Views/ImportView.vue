@@ -5,12 +5,13 @@ import type { SDFile, PlayableMedia, ImportFilters } from '../api/types';
 
 const emit = defineEmits<{
   (e: "select", payload: { file: SDFile; volumeUid: string }): void;
-  (e: "selection-change", files: SDFile[]): void;  // ← Add this
+  (e: "selection-change", files: SDFile[]): void;
+  (e: "import"): void;
 }>();
 
 const props = defineProps<{
   sdFileFilters: ImportFilters;
-  currentVolumeUid: string;  // ← Add this
+  currentVolumeUid: string;
 }>();
 
 const selectedMedia = ref<PlayableMedia | null>(null);
@@ -31,10 +32,11 @@ function onSelectionChange(files: SDFile[]) {
 
 <template>
   <SDFileBrowser
-    :selectedId="selectedId"
+    :selectedId="null"
     :query="query"
     :filters="sdFileFilters"
     @select="onSelectSDFile"
     @selection-change="onSelectionChange"
+    @import="emit('import')"
   />
 </template>

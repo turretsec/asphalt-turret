@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import Button from 'primevue/button';
-import Checkbox from 'primevue/checkbox';
-import Skeleton from 'primevue/skeleton';
-import { ref, watch } from 'vue';
+import MediaBrowser from '../shared/MediaBrowser.vue';
+import type { SortOption } from '../shared/MediaBrowser.vue';
+import { ref } from 'vue';
 import type { Clip } from '../../api/types';
 import { getClipThumbnailUrl } from '../../api/thumbnails';
+import { useViewMode } from '../../composables/useViewMode';
+import { formatFileSize, formatDuration } from '../../utils/format';
 
 const props = defineProps<{
   clips: Clip[];
@@ -17,118 +18,101 @@ const emit = defineEmits<{
   (e: "select", clip: Clip): void;
   (e: "selection-change", clips: Clip[]): void;
   (e: "load"): void;
+  (e: "delete-selected"): void;
+  (e: "sort-change", value: string): void;
+  (e: "export"): void;
+  (e: "delete"): void;
+  (e: "go-to-import"): void;
 }>();
 
-const selectedClips = ref<Clip[]>([]);
-
-// Watch for selection changes and emit
-watch(selectedClips, (newSelection) => {
-  emit("selection-change", newSelection);
-}, { deep: true });
-
-// Handle clicking on the row (not the checkbox)
-function onClipClick(clip: Clip, event: MouseEvent) {
-  // If they clicked the checkbox area, ignore (let checkbox handle it)
-  if ((event.target as HTMLElement).closest('.clip-checkbox')) {
-    return;
-  }
-  
-  // Single click to preview
-  emit("select", clip);
-}
-
-// Check if a clip is selected for preview
-function isPreviewedClip(clip: Clip): boolean {
-  return props.selectedId === clip.id;
-}
-
-// Check if a clip is checked
-function isCheckedClip(clip: Clip): boolean {
-  return selectedClips.value.some(c => c.id === clip.id);
-}
-
-// Thumbnail loading state per clip
+const { viewMode, toggleViewMode } = useViewMode('clips-view-mode');
 const thumbnailErrors = ref<Set<number>>(new Set());
 
 function onThumbnailError(clipId: number) {
   thumbnailErrors.value.add(clipId);
 }
 
+// Sort options for clips
+const sortOptions: SortOption[] = [
+  { label: 'Date (Newest)', value: 'date-desc' },
+  { label: 'Date (Oldest)', value: 'date-asc' },
+  { label: 'Name (A-Z)', value: 'name-asc' },
+  { label: 'Name (Z-A)', value: 'name-desc' },
+];
+
+const sortBy = ref('date-desc');  // Default sort
+
+function onSortChange(value: string) {
+  sortBy.value = value;
+  emit('sort-change', value);
+}
 </script>
 
 <template>
-  <div class="h-full flex flex-col w-full">
-    <div class="p-3 border-b border-surface-800 flex items-center justify-between">
-      <div class="font-semibold">
-        Clips 
-        <span v-if="selectedClips.length > 0" class="text-xs opacity-70 ml-2">
-          ({{ selectedClips.length }} selected)
-        </span>
-      </div>
-      <Button 
-        class="min-w-20 rounded-md border border-surface-700 hover:bg-surface-900"
-        icon="pi pi-refresh"
-        @click="emit('load')"
-        :disabled="loading"
-        :loading="loading"
-        size="small"
-      >
-        {{ loading ? "Loading..." : "Refresh" }}
-      </Button>
-    </div>
-
-    <div v-if="error" class="p-3 text-red-300 bg-red-950/30 border-b border-red-900">
-      {{ error }}
-    </div>
-
-    <div v-if="!error && clips.length === 0" class="p-3 opacity-70">
-      No clips found.
-    </div>
-
-    <div v-if="loading" class="flex flex-col p-3 space-y-2">
-      <Skeleton class="min-h-10 max-h-10" />
-      <Skeleton class="min-h-10 max-h-10" />
-      <Skeleton class="min-h-10 max-h-10" />
-      <Skeleton class="min-h-10 max-h-10" />
-    </div>
-
-    <ul v-if="!loading" class="flex-1 overflow-auto">
-      <li
-        v-for="c in clips"
-        :key="c.id"
-        class="p-3 border-b border-surface-800 hover:bg-surface-900 cursor-pointer transition-colors flex items-center gap-3"
-        :class="{
-          'bg-blue-950': isPreviewedClip(c) && !isCheckedClip(c),
-          'bg-yellow-950': isCheckedClip(c) && !isPreviewedClip(c),
-          'bg-cyan-950': isCheckedClip(c) && isPreviewedClip(c),
-        }"
-        @click="onClipClick(c, $event)"
-      >
-        <!-- Checkbox for selection -->
-        <div class="clip-checkbox flex-shrink-0" @click.stop>
-          <Checkbox
-            v-model="selectedClips"
-            :value="c"
-            :inputId="`clip-${c.id}`"
-          />
+  <MediaBrowser
+    :items="clips"
+    :loading="loading"
+    :error="error"
+    :selectedId="selectedId"
+    :viewMode="viewMode"
+    :sortOptions="sortOptions"
+    :sortBy="sortBy"
+    :actionBarMode="'clips'"
+    title="Clips"
+    @select="emit('select', $event)"
+    @selection-change="emit('selection-change', $event)"
+    @load="emit('load')"
+    @toggle-view="toggleViewMode"
+    @delete-selected="emit('delete-selected')"
+    @sort-change="onSortChange"
+    @export="emit('export')"
+    @delete="emit('delete')"
+  >
+    <!-- Custom content for each clip - changes based on viewMode -->
+    <template #item="{ item: clip, viewMode }">
+      <!-- Table View -->
+      <template v-if="viewMode === 'table'">
+        <div class="flex-1 min-w-0 grid grid-cols-5 gap-4 items-center">
+          <!-- Filename -->
+          <div class="text-sm truncate col-span-2">{{ clip.original_filename }}</div>
+          
+          <!-- Duration -->
+          <div class="text-xs opacity-70">
+            {{ formatDuration(clip.duration_s) }}
+          </div>
+          
+          <!-- File Size -->
+          <div class="text-xs opacity-70">
+            {{ formatFileSize(clip.size_bytes) }}
+          </div>
+          
+          <!-- Date -->
+          <div class="text-xs opacity-70">
+            {{ new Date(clip.imported_at).toLocaleDateString() }}
+          </div>
         </div>
+      </template>
 
-        <!-- Clip info -->
+      <!-- Compact View -->
+      <template v-else-if="viewMode === 'compact'">
+        <!-- Info -->
         <div class="flex-1 min-w-0">
-          <div class="text-sm truncate">{{ c.original_filename }}</div>
-          <div class="text-xs opacity-70 mt-1">
-            {{ new Date(c.imported_at).toLocaleString() }}
+          <div class="text-sm truncate">{{ clip.original_filename }}</div>
+          <div class="text-xs opacity-70 mt-1 flex gap-2">
+            <span>{{ formatDuration(clip.duration_s) }}</span>
+            <span>•</span>
+            <span>{{ formatFileSize(clip.size_bytes) }}</span>
           </div>
         </div>
 
-        <!-- Thumbnail -->
+        <!-- Thumbnail (small) -->
         <div class="flex-shrink-0 w-28 h-16 bg-surface-950 rounded overflow-hidden">
           <img
-            v-if="!thumbnailErrors.has(c.id)"
-            :src="getClipThumbnailUrl(c.id)"
-            :alt="c.original_filename"
+            v-if="!thumbnailErrors.has(clip.id)"
+            :src="getClipThumbnailUrl(clip.id)"
+            :alt="clip.original_filename"
             class="w-full h-full object-cover"
-            @error="onThumbnailError(c.id)"
+            @error="onThumbnailError(clip.id)"
             loading="lazy"
           />
           <div
@@ -138,14 +122,58 @@ function onThumbnailError(clipId: number) {
             <i class="pi pi-video text-2xl"></i>
           </div>
         </div>
-      </li>
-    </ul>
-  </div>
-</template>
+      </template>
 
-<style scoped>
-.clip-checkbox {
-  /* Prevent clicks from bubbling to the row */
-  pointer-events: auto;
-}
-</style>
+      <!-- Expanded View -->
+      <template v-else>
+        <!-- Thumbnail (larger, on left) -->
+        <div class="flex-shrink-0 w-48 h-28 bg-surface-950 rounded overflow-hidden">
+          <img
+            v-if="!thumbnailErrors.has(clip.id)"
+            :src="getClipThumbnailUrl(clip.id)"
+            :alt="clip.original_filename"
+            class="w-full h-full object-cover"
+            @error="onThumbnailError(clip.id)"
+            loading="lazy"
+          />
+          <div
+            v-else
+            class="w-full h-full flex items-center justify-center text-surface-600"
+          >
+            <i class="pi pi-video text-3xl"></i>
+          </div>
+        </div>
+
+        <!-- Info (more detailed) -->
+        <div class="flex-1 min-w-0 flex flex-col justify-center">
+          <div class="text-base font-medium truncate">{{ clip.original_filename }}</div>
+          <div class="text-sm opacity-70 mt-2 space-y-1">
+            <div class="flex gap-4">
+              <span>{{ formatDuration(clip.duration_s) }}</span>
+              <span>{{ formatFileSize(clip.size_bytes) }}</span>
+            </div>
+            <div class="flex gap-4">
+              <span>{{ clip.camera || 'Unknown' }}</span>
+              <span>{{ clip.mode || 'Unknown' }}</span>
+            </div>
+            <div class="flex gap-4">
+              <span>{{ new Date(clip.imported_at).toLocaleDateString() }}</span>
+              <span>{{ new Date(clip.imported_at).toLocaleTimeString() }}</span>
+            </div>
+          </div>
+        </div>
+      </template>
+    </template>
+
+    <!-- Custom empty state -->
+    <template #empty>
+      <EmptyState
+        icon="pi pi-video"
+        title="No clips in your repository"
+        description="Import video files from your dashcam SD card to get started. Your clips will appear here once imported."
+        actionLabel="Go to Import"
+        @action="$emit('go-to-import')"
+      />
+    </template>
+  </MediaBrowser>
+</template>

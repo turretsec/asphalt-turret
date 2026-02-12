@@ -49,6 +49,9 @@ def probe_clip(session: Session, clip: Clip) -> None:
     logger.info(f"Probing clip {clip.id}: {clip_path.name}")
     
     try:
+        # Get file size
+        clip.size_bytes = clip_path.stat().st_size  # ← NEW
+        
         # Run ffprobe
         probe_data = run_ffprobe_json(
             ffprobe_path=settings.ffprobe_path,

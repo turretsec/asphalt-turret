@@ -18,7 +18,11 @@ const props = defineProps<{
 // Emits
 const emit = defineEmits<{
   (e: "select", clip: Clip): void;
-  (e: "selection-change", clips: Clip[]): void;  // ← New!
+  (e: "selection-change", clips: Clip[]): void;
+  (e: "delete-selected"): void;
+  (e: "export"): void;
+  (e: "delete"): void;
+  (e: "go-to-import"): void;
 }>();
 
 defineExpose({
@@ -141,12 +145,16 @@ onMounted(async () => {
 
 <template>
   <ClipBrowser
-    :clips="filteredClips"
+    :clips="clips"
     :loading="loading"
     :error="error"
-    :selectedId="selectedId"
+    :selectedId="null"
     @select="onSelectClip"
     @selection-change="onSelectionChange"
-    @load="load"
+    @load="() => {}"
+    @delete-selected="emit('delete-selected')"
+    @export="emit('export')"
+    @delete="emit('delete')"
+    @go-to-import="emit('go-to-import')"
   />
 </template>
