@@ -22,6 +22,10 @@ class JsonSettingsStore:
         # If present, try to parse/validate
         try:
             data = json.loads(self.path.read_text(encoding="utf-8"))
+            if data.get("repository_dir") == "":
+                data["repository_dir"] = None
+            if data.get("incoming_dir") == "":
+                data["incoming_dir"] = None
             settings = UserSettings.model_validate(data)
             return settings
         except Exception:

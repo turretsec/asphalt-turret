@@ -42,6 +42,15 @@ class UserSettings(BaseModel):
         "category": "Paths",
     })
 
+    @field_validator("repository_dir", "incoming_dir", mode="before")
+    @classmethod
+    def empty_string_means_none(cls, v):
+        if v is None:
+            return None
+        if isinstance(v, str) and v.strip() == "":
+            return None
+        return v
+
     @field_validator("repository_dir", "incoming_dir")
     @classmethod
     def normalize_paths(cls, v: Path | None) -> Path | None:

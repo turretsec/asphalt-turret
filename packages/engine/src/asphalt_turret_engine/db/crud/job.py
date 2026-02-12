@@ -110,7 +110,7 @@ def create_import_batch_job(
     job = Job(
         type=JobTypeEnum.import_batch,
         state=JobStateEnum.queued,
-        metadata_json=json.dumps(metadata),
+        metadata_json=json.dumps(metadata) if metadata else None,
         progress=0,
         message=f"Queued: {len(file_ids)} files to import"
     )
@@ -202,7 +202,7 @@ def create_probe_batch_job(
     job = Job(
         type=JobTypeEnum.probe_batch,
         state=JobStateEnum.queued,
-        metadata_json=json.dumps(metadata),
+        metadata_json=json.dumps(metadata) if metadata else None,
         progress=0,
         message=f"Queued: {len(clip_ids)} clips to probe"
     )

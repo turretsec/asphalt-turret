@@ -3,7 +3,7 @@
 import PanelMenu from "primevue/panelmenu";
 
 const emit = defineEmits<{
-  (e: "select", mode: "repo" | "import"): void;
+  (e: "select", mode: "repo" | "import" | "settings"): void;
 }>();
 
 const items = [
@@ -17,6 +17,11 @@ const items = [
     icon: "pi pi-file-import",
     command: () => emit("select", "import"),
   },
+  {
+    label: "Settings",
+    icon: "pi pi-cog",
+    command: () => emit("select", "settings"),
+  }
 ];
 
 </script>

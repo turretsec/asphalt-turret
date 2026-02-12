@@ -57,4 +57,5 @@ def get_absolute_clip_path(clip) -> Path:
     Returns:
         Absolute path to clip file
     """
+
     return settings.repository_dir / clip.repo_path

@@ -142,3 +142,68 @@ export interface ExportClipsResponse {
   message: string;
   destination: string;
 }
+
+// export type SettingsResponse = {
+//   user: Record<string, any>;
+//   effective: Record<string, any>;
+//   restart_required?: boolean;
+//   changed_keys?: string[];
+// };
+
+// Settings types matching backend
+export interface UserSettings {
+  version: number;
+  thumbnail_width: number | null;
+  thumbnail_height: number | null;
+  thumbnail_quality: number | null;
+  ffprobe_timeout_s: number | null;
+  repository_dir: string | null;
+  incoming_dir: string | null;
+}
+
+export interface EffectiveSettings {
+  base_dir: string;
+  database_url: string;
+  ffprobe_timeout_s: number;
+  thumbnail_width: number;
+  thumbnail_height: number;
+  thumbnail_quality: number;
+  repository_dir: string;
+  incoming_dir: string;
+  thumbnails_dir: string;
+  ffprobe_path: string;
+  ffmpeg_path: string;
+}
+
+export interface SettingsResponse {
+  changed_keys?: string[];
+  restart_required?: boolean;
+  user: UserSettings;
+  effective: EffectiveSettings;
+}
+
+export enum JobState {
+  PENDING = 'pending',
+  RUNNING = 'running',
+  COMPLETED = 'completed',
+  FAILED = 'failed',
+}
+
+export enum JobType {
+  IMPORT_BATCH = 'import_batch',
+  PROBE_BATCH = 'probe_batch',
+  PROBE_CLIP = 'probe_clip',
+}
+
+export interface JobStatus {
+  job_id: number;
+  type: JobType;
+  state: JobState;
+  progress: number;
+  total: number | null;
+  completed: number | null;
+  failed: number | null;
+  message: string | null;
+  created_at: string;
+  updated_at: string;
+}

@@ -15,21 +15,27 @@ import MediaPlayer from '../components/shared/MediaPlayer.vue';
 import Nav from '../components/common/Nav.vue';
 import RepoView from './RepoView.vue';
 import ImportView from './ImportView.vue';
+import SettingsView from './SettingsView.vue';
 import type { SDFile, PlayableMedia, Clip } from '../api/types';
 import { CameraEnum, SDFileImportState } from '../api/types';
 import { exportClips } from '../api/clips';
 import { useClips } from '../composables/useClips';
 import { useSDFiles } from '../composables/useSDFiles';
+import { useActiveJobs } from '../composables/useActiveJobs';
+import JobProgress from '../components/shared/JobProgress.vue';
 
 const clipsManager = useClips();
 const sdFilesManager = useSDFiles();
 
 const selectedMedia = ref<PlayableMedia | null>(null);
-const mode = ref<"repo" | "import">("repo");
+const mode = ref<"repo" | "import" | "settings">("repo");
 const toast = useToast();
 const confirm = useConfirm();
 
-function onSelectMode(m: "repo" | "import") {
+const { addJob, hasActiveJobs } = useActiveJobs();
+const currentImportJobId = ref<number | null>(null);
+
+function onSelectMode(m: "repo" | "import" | "settings") {
   mode.value = m;
 }
 
@@ -148,25 +154,46 @@ async function handleImport() {
   try {
     const response = await sdFilesManager.importSelected();
     
+    if (response.job_id > 0) {
+      // Track this job
+      currentImportJobId.value = response.job_id;
+      addJob(response.job_id);
+    }
+    
     toast.add({
-      severity: 'success',
+      severity: 'info',
       summary: 'Import Started',
-      detail: `Job ${response.job_id} created for ${response.total_files} files`,
-      life: 3000
+      detail: `Importing ${response.total_files} files...`,
+      life: 3000,
     });
+    
+    // Clear selection after starting import
+    sdFilesManager.clearSelection();
     
   } catch (e) {
     toast.add({
       severity: 'error',
       summary: 'Import Failed',
       detail: e instanceof Error ? e.message : 'Unknown error',
-      life: 5000
+      life: 5000,
     });
   }
 }
 
+function onImportComplete() {
+  currentImportJobId.value = null;
+  // Reload to show new imports
+  clipsManager.load();
+  sdFilesManager.loadSDCards();
+}
+
 function handleGoToImport() {
   mode.value = 'import';
+}
+
+function onImportDismiss() {
+  currentImportJobId.value = null;
+  // Don't reload - just hide the indicator
 }
 
 watch(mode, async () => {
@@ -251,7 +278,7 @@ onMounted(async () => {
       <SplitterPanel class="flex items-center justify-center">
         <Splitter orientation="vertical" style="height: 100%;">
           <SplitterPanel class="flex flex-col items-center justify-center p-2 bg-surface-950">
-            
+
             <RepoView
               v-if="mode === 'repo'"
               @select="onSelectClip"
@@ -265,18 +292,25 @@ onMounted(async () => {
             />
 
             <ImportView
-              v-else
+              v-else-if="mode === 'import'"
               @select="onSelectSDFile"
               @selection-change="sdFilesManager.setSelection"
+              @import-complete="onImportComplete"
+              @import-dismiss="onImportDismiss"
               @import="handleImport"
               :sdFileFilters="sdFilesManager.filters"
               :currentVolumeUid="sdFilesManager.currentVolumeUid.value"
+              :currentImportJobId="currentImportJobId"
             />
+
+            <SettingsView v-else />
 
           </SplitterPanel>
           
-          <SplitterPanel class="flex items-center justify-center p-2 bg-surface-950">
-            <MediaPlayer :media="selectedMedia" />
+          <SplitterPanel class="flex items-center justify-center p-2 bg-surface-950" v-if="mode !== 'settings'">
+            <MediaPlayer 
+              :media="selectedMedia" 
+            />
           </SplitterPanel>
         </Splitter>
       </SplitterPanel>

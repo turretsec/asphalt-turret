@@ -4,6 +4,7 @@ from sqlalchemy import select
 from pydantic import BaseModel
 from typing import Optional
 
+from asphalt_turret_api.schemas.job import JobStatusResponse
 from asphalt_turret_engine.db.session import get_db
 from asphalt_turret_engine.db.crud import sd_card as sd_card_crud
 from asphalt_turret_engine.db.crud import sd_file as sd_file_crud
@@ -100,7 +101,7 @@ def import_sd_card(
     job = job_crud.create_import_batch_job(
         db,
         sd_card_id=card.id,
-        file_ids=file_ids
+        file_ids=file_ids,
     )
 
     db.commit()
@@ -112,7 +113,7 @@ def import_sd_card(
     )
 
 
-@router.get("/jobs/{job_id}")
+@router.get("/jobs/{job_id}", response_model=JobStatusResponse)
 def get_job_status(job_id: int, db: Session = Depends(get_db)):
     """
     Get status of an import job.
@@ -120,21 +121,39 @@ def get_job_status(job_id: int, db: Session = Depends(get_db)):
     Returns current progress, state, and message.
     """
     from asphalt_turret_engine.db.models.job import Job
+    import json
     
     job = db.get(Job, job_id)
     
     if not job:
         raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
     
-    return {
-        "job_id": job.id,
-        "type": job.type.value,
-        "state": job.state.value,
-        "progress": job.progress,
-        "message": job.message,
-        "created_at": job.created_at,
-        "updated_at": job.updated_at,
-    }
+    # Try to extract counts from metadata_json
+    total = None
+    completed = None
+    failed = None
+    
+    if job.metadata_json:
+        try:
+            metadata = json.loads(job.metadata_json)
+            total = metadata.get("total")
+            completed = len(metadata.get("completed", []))
+            failed = len(metadata.get("failed", []))
+        except:
+            pass
+    
+    return JobStatusResponse(
+        job_id=job.id,
+        type=job.type.value,
+        state=job.state.value,
+        progress=job.progress,
+        total=total,
+        completed=completed,
+        failed=failed,
+        message=job.message,
+        created_at=job.created_at.isoformat(),
+        updated_at=job.updated_at.isoformat(),
+    )
 
 @router.post("/probe-clips")
 def probe_imported_clips(

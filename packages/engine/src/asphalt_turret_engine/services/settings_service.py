@@ -3,7 +3,7 @@ from typing import Any
 
 from asphalt_turret_engine.adapters.json_settings_store import JsonSettingsStore
 from asphalt_turret_engine.config.bootstrap_settings import BootstrapSettings
-from asphalt_turret_engine.config.user_settings import UserSettingsPatch
+from asphalt_turret_engine.config.user_settings import UserSettings, UserSettingsPatch
 
 RESTART_KEYS = {"repository_dir", "incoming_dir"}
 
@@ -27,17 +27,17 @@ class SettingsService:
         thumbnails_dir = base / "data" / "thumbnails"
 
         return {
-            "base_dir": str(base),
+            "base_dir": base,
             "database_url": self.bootstrap.database_url,
             "ffprobe_timeout_s": self.user.ffprobe_timeout_s,
             "thumbnail_width": self.user.thumbnail_width,
             "thumbnail_height": self.user.thumbnail_height,
             "thumbnail_quality": self.user.thumbnail_quality,
-            "repository_dir": str(repository_dir),
-            "incoming_dir": str(incoming_dir),
-            "thumbnails_dir": str(thumbnails_dir),
-            "ffprobe_path": str(base / "bin" / "ffprobe.exe"),
-            "ffmpeg_path": str(base / "bin" / "ffmpeg.exe"),
+            "repository_dir": repository_dir,
+            "incoming_dir": incoming_dir,
+            "thumbnails_dir": thumbnails_dir,
+            "ffprobe_path": base / "bin" / "ffprobe.exe",
+            "ffmpeg_path": base / "bin" / "ffmpeg.exe",
         }
 
     def update(self, patch: UserSettingsPatch) -> SettingsUpdateResult:
