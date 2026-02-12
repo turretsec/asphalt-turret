@@ -77,3 +77,6 @@ app.include_router(clips.router)
 
 from asphalt_turret_api.routers import sd_files
 app.include_router(sd_files.router)
+
+from asphalt_turret_api.routers import settings
+app.include_router(settings.router)
