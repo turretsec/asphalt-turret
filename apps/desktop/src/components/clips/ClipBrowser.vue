@@ -5,15 +5,18 @@ import { ref } from 'vue';
 import type { Clip } from '../../api/types';
 import { getClipThumbnailUrl } from '../../api/thumbnails';
 import { useViewMode } from '../../composables/useViewMode';
+import type { SDFile, SDCard, DatePreset, Fi } from '../../api/types';
 import { formatFileSize, formatDuration } from '../../utils/format';
 import EmptyState from '../shared/EmptyState.vue';
 
-
 const props = defineProps<{
   clips: Clip[];
+  query: string;
   loading: boolean;
   error: string | null;
   selectedId: number | null;
+  filterMode?: string;
+  filterDate?: string;
 }>();
 
 const emit = defineEmits<{
@@ -58,6 +61,7 @@ function onSortChange(value: string) {
     :selectedId="selectedId"
     :viewMode="viewMode"
     :sortOptions="sortOptions"
+    :query="query"
     :sortBy="sortBy"
     :actionBarMode="'clips'"
     title="Clips"

@@ -26,7 +26,6 @@ const props = defineProps<{
 
 
 const selectedMedia = ref<PlayableMedia | null>(null);
-const query = ref("");
 
 const selectedId = computed<number | null>(() => 
   selectedMedia.value ? selectedMedia.value.data.id : null

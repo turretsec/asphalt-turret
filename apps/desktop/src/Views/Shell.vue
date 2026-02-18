@@ -236,6 +236,10 @@ async function handleScanSDCards() {
   }
 }
 
+async function handleRepoLoad() {
+  await clipsManager.load();
+}
+
 watch(mode, async () => {
   selectedMedia.value = null;
   clipsManager.query.value = "";
@@ -327,6 +331,7 @@ onMounted(async () => {
               @export="handleExport"
               @delete="handleDelete"
               @go-to-import="handleGoToImport"s
+              @load="handleRepoLoad"
               :filters="clipsManager.filters"
               :query="clipsManager.query.value"
             />

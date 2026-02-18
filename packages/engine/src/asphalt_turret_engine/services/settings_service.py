@@ -21,6 +21,7 @@ class SettingsService:
     def effective(self) -> dict[str, Any]:
         # Merge defaults + derived paths + user overrides
         base = self.bootstrap.base_dir
+        probe_version = self.bootstrap.probe_version
 
         repository_dir = self.user.repository_dir or (base / "data" / "repository")
         incoming_dir = self.user.incoming_dir or (base / "data" / "incoming")
@@ -29,6 +30,7 @@ class SettingsService:
         return {
             "base_dir": base,
             "database_url": self.bootstrap.database_url,
+            "probe_version": probe_version,
             "ffprobe_timeout_s": self.user.ffprobe_timeout_s,
             "thumbnail_width": self.user.thumbnail_width,
             "thumbnail_height": self.user.thumbnail_height,

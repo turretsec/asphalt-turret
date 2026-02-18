@@ -156,5 +156,6 @@ onMounted(async () => {
     @export="emit('export')"
     @delete="emit('delete')"
     @go-to-import="emit('go-to-import')"
+    :query="query"
   />
 </template>

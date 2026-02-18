@@ -12,6 +12,7 @@ class ClipResponse(BaseModel):
     mode: ModeEnum
     recorded_at: datetime | None
     duration_s: float | None
+    size_bytes: int | None
     codec: str | None
     width: int | None
     height: int | None

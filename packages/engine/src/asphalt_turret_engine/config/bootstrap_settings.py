@@ -8,6 +8,7 @@ def get_base_dir() -> Path:
 
 class BootstrapSettings(BaseSettings):
     base_dir: Path = get_base_dir()
+    probe_version: int = 1
 
     model_config = SettingsConfigDict(
         env_prefix="ASPHALT_",
