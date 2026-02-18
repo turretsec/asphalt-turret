@@ -207,3 +207,8 @@ export interface JobStatus {
   created_at: string;
   updated_at: string;
 }
+
+export interface SDCardScanResponse {
+  job_id: number;
+  message: string;
+}

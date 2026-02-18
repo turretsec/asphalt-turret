@@ -29,6 +29,7 @@ class JobTypeEnum(str, Enum):
     probe_batch = "probe_batch"
     import_file = "import_file"
     probe_clip = "probe_clip"
+    sd_scan = "sd_scan"
 
 class JobStateEnum(str, Enum):
     queued = "queued"

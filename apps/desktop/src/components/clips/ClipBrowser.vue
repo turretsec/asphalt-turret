@@ -6,6 +6,8 @@ import type { Clip } from '../../api/types';
 import { getClipThumbnailUrl } from '../../api/thumbnails';
 import { useViewMode } from '../../composables/useViewMode';
 import { formatFileSize, formatDuration } from '../../utils/format';
+import EmptyState from '../shared/EmptyState.vue';
+
 
 const props = defineProps<{
   clips: Clip[];

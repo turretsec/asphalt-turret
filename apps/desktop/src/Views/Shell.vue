@@ -23,6 +23,7 @@ import { useClips } from '../composables/useClips';
 import { useSDFiles } from '../composables/useSDFiles';
 import { useActiveJobs } from '../composables/useActiveJobs';
 import JobProgress from '../components/shared/JobProgress.vue';
+import { scanSDCards } from '../api/sd_card';
 
 const clipsManager = useClips();
 const sdFilesManager = useSDFiles();
@@ -34,6 +35,8 @@ const confirm = useConfirm();
 
 const { addJob, hasActiveJobs } = useActiveJobs();
 const currentImportJobId = ref<number | null>(null);
+
+const importViewRef = ref<InstanceType<typeof ImportView> | null>(null);
 
 function onSelectMode(m: "repo" | "import" | "settings") {
   mode.value = m;
@@ -182,9 +185,15 @@ async function handleImport() {
 
 function onImportComplete() {
   currentImportJobId.value = null;
-  // Reload to show new imports
+  
+  // Reload clips
   clipsManager.load();
-  sdFilesManager.loadSDCards();
+  
+  // Reload SD card data
+  sdFilesManager.loadSDCards().then(() => {
+    // Force ImportView to refresh after data is loaded
+    importViewRef.value?.refresh();
+  });
 }
 
 function handleGoToImport() {
@@ -198,6 +207,33 @@ function onImportDismiss() {
 
 async function handleVolumeChange(volumeUid: string) {
   await sdFilesManager.switchToCard(volumeUid);
+}
+
+
+async function handleScanSDCards() {
+  try {
+    const response = await scanSDCards();
+    
+    toast.add({
+      severity: 'info',
+      summary: 'Scanning SD Cards',
+      detail: 'Looking for new files...',
+      life: 3000,
+    });
+    
+    // Reload after a delay to show new files
+    setTimeout(() => {
+      sdFilesManager.loadSDCards();
+    }, 2000);
+    
+  } catch (e) {
+    toast.add({
+      severity: 'error',
+      summary: 'Scan Failed',
+      detail: e instanceof Error ? e.message : 'Unknown error',
+      life: 5000,
+    });
+  }
 }
 
 watch(mode, async () => {
@@ -290,7 +326,7 @@ onMounted(async () => {
               @delete-selected="handleDelete"
               @export="handleExport"
               @delete="handleDelete"
-              @go-to-import="handleGoToImport"
+              @go-to-import="handleGoToImport"s
               :filters="clipsManager.filters"
               :query="clipsManager.query.value"
             />
@@ -302,10 +338,14 @@ onMounted(async () => {
               @import-complete="onImportComplete"
               @import-dismiss="onImportDismiss"
               @volume-change="handleVolumeChange"
+              @scan-cards="handleScanSDCards"
+              @import="handleImport"
               :sdFileFilters="sdFilesManager.filters"
               :currentVolumeUid="sdFilesManager.currentVolumeUid.value"
               :currentImportJobId="currentImportJobId"
               :availableCards="sdFilesManager.availableCards.value"
+              :query="sdFilesManager.query.value"
+              ref="importViewRef"
             />
 
             <SettingsView v-else />

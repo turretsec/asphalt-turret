@@ -1,4 +1,4 @@
-import { apiGet, API_BASE } from "./client";
+import { apiGet, API_BASE, apiPost } from "./client";
 import type { SDFile, SDCard } from "./types";
 
 export async function listSDCardFiles(volume_uid: string): Promise<SDFile[]> {
@@ -11,4 +11,8 @@ export function listSDCards(): Promise<SDCard[]> {
 
 export async function getSDCardTree(volume_uid: string): Promise<any> {
   return apiGet(`/sd-card/${volume_uid}/tree`);
+}
+
+export async function scanSDCards(): Promise<{ job_id: number; message: string }> {
+  return apiPost("/sd-card/scan", {});
 }

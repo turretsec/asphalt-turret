@@ -7,7 +7,8 @@ from sqlalchemy.orm import Session
 from asphalt_turret_engine.db.models.job import Job
 from asphalt_turret_engine.db.models.sd_file import SDFile
 from asphalt_turret_engine.db.models.sd_card import SDCard
-from asphalt_turret_engine.db.crud import job as job_crud
+from asphalt_turret_engine.db.crud import clip, job as job_crud
+from asphalt_turret_engine.db.crud import clip as clip_crud
 from asphalt_turret_engine.services.clip_service import promote_to_repository
 from asphalt_turret_engine.db.models.clip_source import ClipSource
 from asphalt_turret_engine.db.enums import CameraEnum, ModeEnum
@@ -155,6 +156,35 @@ def handle_import_batch(session: Session, job: Job) -> None:
         logger.info(f"Job {job.id} completed successfully")
     
     session.flush()
+
+    # 5. Create probe job for newly imported clips (← ADD THIS)
+    if completed:
+        # Get the clip IDs that were just created
+        newly_created_clip_ids = []
+        for file_id in completed:
+            sd_file = session.get(SDFile, file_id)
+            if sd_file:
+                # Find the clip created from this SD file via ClipSource
+                from asphalt_turret_engine.db.models.clip_source import ClipSource
+                from sqlalchemy import select
+                
+                stmt = select(ClipSource.clip_id).where(
+                    ClipSource.sd_card_id == sd_file.sd_card_id,
+                    ClipSource.rel_path == sd_file.rel_path
+                ).order_by(ClipSource.seen_at.desc()).limit(1)
+                
+                result = session.execute(stmt).scalar_one_or_none()
+                if result:
+                    newly_created_clip_ids.append(result)
+        
+        if newly_created_clip_ids:
+            logger.info(f"Creating probe job for {len(newly_created_clip_ids)} newly imported clips")
+            probe_job = job_crud.create_probe_batch_job(
+                session,
+                clip_ids=newly_created_clip_ids
+            )
+            session.flush()
+            logger.info(f"Created probe job {probe_job.id}")
 
 def _import_single_file(
     session: Session,

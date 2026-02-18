@@ -4,6 +4,7 @@ import VolumeSelector from '../components/imports/VolumeSelector.vue';
 import JobProgress from '../components/shared/JobProgress.vue';
 import { ref, computed } from 'vue';
 import type { SDFile, PlayableMedia, ImportFilters, SDCard } from '../api/types';
+import Button from 'primevue/button';
 
 const emit = defineEmits<{
   (e: "select", payload: { file: SDFile; volumeUid: string }): void;
@@ -12,6 +13,7 @@ const emit = defineEmits<{
   (e: "import-complete"): void;
   (e: "import-dismiss"): void;
   (e: "volume-change", volumeUid: string): void;
+  (e: "scan-cards"): void;
 }>();
 
 const props = defineProps<{
@@ -19,7 +21,9 @@ const props = defineProps<{
   currentVolumeUid: string;
   currentImportJobId?: number | null;
   availableCards: SDCard[];
+  query: string;
 }>();
+
 
 const selectedMedia = ref<PlayableMedia | null>(null);
 const query = ref("");
@@ -27,6 +31,15 @@ const query = ref("");
 const selectedId = computed<number | null>(() => 
   selectedMedia.value ? selectedMedia.value.data.id : null
 );
+
+const refreshKey = ref(0);
+
+// Expose method to force refresh
+defineExpose({
+  refresh: () => {
+    refreshKey.value++;
+  }
+});
 
 function onSelectSDFile(payload: { file: SDFile; volumeUid: string }) {
   emit("select", payload);
@@ -47,10 +60,14 @@ function onImportDismiss() {
 function onVolumeChange(volumeUid: string) {
   emit("volume-change", volumeUid);
 }
+
+function onScanCards() {
+  emit("scan-cards");
+}
 </script>
 
 <template>
-  <div class="h-full w-full relative">
+  <div class="h-full w-full flex flex-col relative">
     <!-- Volume Selector Header (if multiple cards) -->
     <div 
       v-if="availableCards.filter(c => c.is_connected).length > 0"
@@ -60,6 +77,15 @@ function onVolumeChange(volumeUid: string) {
         :cards="availableCards"
         :currentVolumeUid="currentVolumeUid"
         @change="onVolumeChange"
+      />
+
+      <!-- Scan button -->
+      <Button
+        label="Scan SD Cards"
+        icon="pi pi-refresh"
+        @click="onScanCards"
+        severity="secondary"
+        size="small"
       />
     </div>
     <!-- Job Progress Indicator (floating, centered over this view) -->
@@ -76,13 +102,16 @@ function onVolumeChange(volumeUid: string) {
       />
     </div>
 
-    <SDFileBrowser
-      :selectedId="null"
-      :query="query"
-      :filters="sdFileFilters"
-      @select="onSelectSDFile"
-      @selection-change="onSelectionChange"
-      @import="emit('import')"
-    />
+    <div class="flex-1 overflow-hidden">
+      <SDFileBrowser
+        :key="currentVolumeUid + refreshKey"
+        :selectedId="null"
+        :query="query"
+        :filters="sdFileFilters"
+        @select="onSelectSDFile"
+        @selection-change="onSelectionChange"
+        @import="emit('import')"
+      />
+    </div>
   </div>
 </template>

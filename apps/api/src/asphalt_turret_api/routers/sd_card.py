@@ -8,8 +8,11 @@ from sqlalchemy import select
 from asphalt_turret_api.schemas.sd_card import SDCardListItem, SDCardsListResponse, ScanRequest, ScanResponse, SDFilesListResponse, SDFileResponse, TreeNode
 from asphalt_turret_engine.db.session import get_db
 from asphalt_turret_engine.services.sd_card_service import scan_sd_card
-from asphalt_turret_engine.db.enums import SDFileImportStateEnum, ModeEnum
+from asphalt_turret_engine.db.enums import SDFileImportStateEnum, ModeEnum, JobStateEnum
 from asphalt_turret_engine.db.models.sd_file import SDFile
+from asphalt_turret_engine.db.models.job import Job
+from asphalt_turret_engine.db.crud import job as job_crud
+from asphalt_turret_engine.db.enums import JobTypeEnum
 import asphalt_turret_engine.db.crud.sd_card as sd_card_crud
 import asphalt_turret_engine.db.crud.sd_file as sd_file_crud
 
@@ -19,23 +22,28 @@ from asphalt_turret_engine.services.thumbnail_service import get_or_generate_thu
 
 router = APIRouter(prefix="/sd-card", tags=["sd-card"])
 
-
-@router.post("/scan", response_model=ScanResponse)
-def scan_sd_card_endpoint(
-    request: ScanRequest,
-    db: Session = Depends(get_db)
-):
+@router.post("/scan")
+def trigger_sd_scan(db: Session = Depends(get_db)):
     """
-    Scan an SD card and register discovered files.
+    Trigger a scan of all connected SD cards.
     
-    Returns statistics about files found.
+    Creates a background job to scan for new/updated files.
+    Returns immediately - scan happens asynchronously.
     """
-    try:
-        result = scan_sd_card(db, volume_uid=request.volume_uid)
-        db.commit()
-        return result
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    # Create SD scan job
+    job = Job(
+        type=JobTypeEnum.sd_scan,
+        state=JobStateEnum.queued,
+        progress=0,
+        message="Queued: SD card scan"
+    )
+    db.add(job)
+    db.commit()
+    
+    return {
+        "job_id": job.id,
+        "message": "SD card scan started"
+    }
     
 @router.get("/{volume_uid}/files", response_model=list[SDFileResponse])
 def list_sd_card_files(

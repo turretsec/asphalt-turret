@@ -4,7 +4,7 @@ import Message from 'primevue/message';
 import Button from 'primevue/button';
 import { useJobTracking } from '../../composables/useJobTracking';
 import { useActiveJobs } from '../../composables/useActiveJobs';
-import { watch, computed } from 'vue';
+import { watch, computed, onMounted } from 'vue';
 import { useToast } from 'primevue/usetoast';
 import { JobState } from '../../api/types';
 
@@ -105,6 +105,14 @@ function handleDismiss() {
   removeJob(props.jobId);
   emit('dismiss');
 }
+
+onMounted(() => {
+  console.log('JobProgress mounted with jobId:', props.jobId);
+});
+
+watch(job, (newJob) => {
+  console.log('Job updated:', newJob);  // ← ADD THIS
+}, { immediate: true });
 </script>
 
 <template>

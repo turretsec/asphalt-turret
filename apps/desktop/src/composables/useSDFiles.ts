@@ -1,8 +1,9 @@
 import { ref, computed, reactive } from 'vue';
 import { listSDCards, listSDCardFiles } from '../api/sd_card';
 import { importSDFiles } from '../api/imports';
-import type { SDFile, SDCard, ModeEnum, SDFileImportState, DatePreset } from '../api/types';
+import type { SDFile, SDCard, ModeEnum, DatePreset } from '../api/types';
 import { parseModeFromPath, parseDateFromFilename } from '../utils/file_parser';
+import { SDFileImportState } from '../api/types';
 
 export function useSDFiles() {
   // State
@@ -22,12 +23,10 @@ export function useSDFiles() {
   // Filters
   const filters = reactive({
     modes: [] as ModeEnum[],
-    states: [] as SDFileImportState[],
+    states: [SDFileImportState.NEW, SDFileImportState.PENDING, SDFileImportState.FAILED] as SDFileImportState[],
     datePreset: "all" as DatePreset,
     dateRange: null as [Date, Date] | null,
   });
-
-  
 
   const query = ref("");
 
@@ -79,6 +78,7 @@ export function useSDFiles() {
     const states = filters.states;
 
     return sdFiles.value.filter((f) => {
+
       // Query
       if (q && !f.rel_path.toLowerCase().includes(q)) return false;
 
@@ -109,19 +109,41 @@ export function useSDFiles() {
       const data = await listSDCards();
       sdCards.value = data;
       
-      // If no current card selected, pick first connected one
+      // Only consider CONNECTED cards
+      const connectedCards = data.filter(card => card.is_connected);
+      
+      // If no current card selected, pick first CONNECTED one
       if (!currentVolumeUid.value) {
-        const connected = data.find(card => card.is_connected);
-        if (connected) {
-          currentVolumeUid.value = connected.volume_uid;
-          await loadFilesForCard(connected.volume_uid);
+        if (connectedCards.length > 0) {
+          currentVolumeUid.value = connectedCards[0].volume_uid;
+          await loadFilesForCard(connectedCards[0].volume_uid);
+        } else {
+          // No connected cards - clear everything
+          currentVolumeUid.value = '';
+          sdFiles.value = [];
         }
       } else {
-        // Reload current card's files
-        await loadFilesForCard(currentVolumeUid.value);
+        // Check if currently selected card is still connected
+        const currentCard = data.find(c => c.volume_uid === currentVolumeUid.value);
+        
+        if (currentCard && currentCard.is_connected) {
+          // Reload current card's files
+          await loadFilesForCard(currentVolumeUid.value);
+        } else {
+          // Current card disconnected - switch to first available or clear
+          if (connectedCards.length > 0) {
+            currentVolumeUid.value = connectedCards[0].volume_uid;
+            await loadFilesForCard(connectedCards[0].volume_uid);
+          } else {
+            currentVolumeUid.value = '';
+            sdFiles.value = [];
+          }
+        }
       }
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to load SD cards';
+      currentVolumeUid.value = '';
+      sdFiles.value = [];
     } finally {
       loading.value = false;
     }

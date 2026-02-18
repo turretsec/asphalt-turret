@@ -6,6 +6,7 @@ import Select from 'primevue/select';
 import { ref, watch, computed, shallowRef } from 'vue';
 import { useKeyboardShortcuts } from '../../composables/useKeyboardShortcuts';
 import EmptyState from './EmptyState.vue';
+import Tooltip from 'primevue/tooltip';
 
 export type SortOption = {
   label: string;
@@ -53,6 +54,15 @@ watch(focusedIndex, (newIndex) => {
     emit("select", props.items[newIndex]);
   }
 });
+
+// On Import Button click - emit event and clear selection immediately
+function onImportClick() {
+  emit('import');
+  // Clear selection immediately after emitting
+  selectedItems.value = [];
+  lastClickedIndex.value = -1;
+  focusedIndex.value = -1;
+}
 
 // Handle checkbox clicks with shift-select support
 function onCheckboxClick(item: T, index: number, event: MouseEvent) {
@@ -224,9 +234,9 @@ defineExpose({
 </script>
 
 <template>
-  <div class="h-full flex flex-col w-full relative">
+  <div class="h-full flex flex-col w-full relative overflow-hidden">
     <!-- Header -->
-    <div class="p-3 border-b border-surface-800 flex items-center justify-between">
+    <div class="p-3 border-b border-surface-800 flex items-center justify-between flex-shrink-0">
       <div class="font-semibold">
         {{ title }}
         <span v-if="selectionCount > 0" class="text-xs opacity-70 ml-2">
@@ -281,12 +291,12 @@ defineExpose({
     </div>
 
     <!-- Error State -->
-    <div v-if="error" class="p-3 text-red-300 bg-red-950/30 border-b border-red-900">
+    <div v-if="error" class="p-3 text-red-300 bg-red-950/30 border-b border-red-900 flex-shrink-0">
       {{ error }}
     </div>
 
-    <!-- Empty State (use slot or default) -->
-    <div v-if="!error && !loading && items.length === 0" class="flex-1 flex items-center justify-center">
+    <!-- Empty State -->
+    <div v-if="!error && !loading && items.length === 0" class="flex-1 flex items-center justify-center flex-shrink-0">
       <slot name="empty">
         <EmptyState
           icon="pi pi-inbox"
@@ -297,7 +307,7 @@ defineExpose({
     </div>
 
     <!-- Loading State -->
-    <div v-if="loading" class="flex flex-col p-3 space-y-2">
+    <div v-if="loading" class="flex flex-col p-3 space-y-2 flex-shrink-0">
       <Skeleton 
         v-for="i in 6"
         :key="i"
@@ -309,101 +319,104 @@ defineExpose({
       />
     </div>
 
-    <!-- Items List -->
-    <ul v-if="!loading && items.length > 0" class="flex-1 overflow-auto">
-      <li
-        v-for="(item, index) in items"
-        :key="item.id"
-        :id="`item-${index}`"
-        :class="[
-          itemClass,
-          'border-b border-surface-800 hover:bg-surface-900 cursor-pointer transition-colors flex items-center gap-3',
-          {
-            'bg-blue-950': isFocusedItem(item) && !isCheckedItem(item),
-            'bg-yellow-950': isCheckedItem(item) && !isFocusedItem(item),
-            'bg-cyan-950': isCheckedItem(item) && isFocusedItem(item),
-          }
-        ]"
-        @click="onItemClick(item, $event, index)"
-      >
-        <!-- Checkbox -->
-        <div class="item-checkbox flex-shrink-0" @click.stop>
-          <Checkbox
-            v-model="selectedItems"
-            :value="item"
-            :inputId="`item-checkbox-${item.id}`"
-            @click="onCheckboxClick(item, index, $event)"
-          />
-        </div>
-
-        <!-- Custom item content -->
-        <slot 
-          name="item" 
-          :item="item"
-          :isSelected="isCheckedItem(item)"
-          :isPreviewed="isFocusedItem(item)"
-          :viewMode="viewMode"
+    <!-- Items List Container -->
+    <div v-if="!loading && items.length > 0" class="flex-1 relative overflow-hidden">  <!-- ← This is the positioning context -->
+      <ul class="h-full overflow-auto">
+        <li
+          v-for="(item, index) in items"
+          :key="item.id"
+          :id="`item-${index}`"
+          :class="[
+            itemClass,
+            'border-b border-surface-800 hover:bg-surface-900 cursor-pointer transition-colors flex items-center gap-3',
+            {
+              'bg-blue-950': isFocusedItem(item) && !isCheckedItem(item),
+              'bg-yellow-950': isCheckedItem(item) && !isFocusedItem(item),
+              'bg-cyan-950': isCheckedItem(item) && isFocusedItem(item),
+            }
+          ]"
+          @click="onItemClick(item, $event, index)"
         >
-          <div class="flex-1">
-            Item {{ item.id }}
+          <!-- Checkbox -->
+          <div class="item-checkbox flex-shrink-0" @click.stop>
+            <Checkbox
+              v-model="selectedItems"
+              :value="item"
+              :inputId="`item-checkbox-${item.id}`"
+              @click="onCheckboxClick(item, index, $event)"
+            />
           </div>
-        </slot>
-      </li>
-    </ul>
-    <!-- Floating Action Bar (positioned relative to MediaBrowser) -->
-    <Transition name="slide-up">
-      <div 
-        v-if="selectionCount > 0 && actionBarMode"
-        class="absolute bottom-6 left-1/2 -translate-x-1/2 bg-surface-800 border border-surface-700 rounded-lg shadow-2xl px-6 py-3 flex items-center gap-4 z-50"
-      >
-        <!-- Selection count -->
-        <div class="text-sm font-medium">
-          {{ selectionCount }} {{ actionBarMode === 'clips' ? 'clip' : 'file' }}{{ selectionCount > 1 ? 's' : '' }} selected
+
+          <!-- Custom item content -->
+          <slot 
+            name="item" 
+            :item="item"
+            :isSelected="isCheckedItem(item)"
+            :isPreviewed="isFocusedItem(item)"
+            :viewMode="viewMode"
+          >
+            <div class="flex-1">
+              Item {{ item.id }}
+            </div>
+          </slot>
+        </li>
+      </ul>
+
+      <!-- Floating Action Bar - MOVED INSIDE items container -->
+      <Transition name="slide-up">
+        <div 
+          v-if="selectionCount > 0 && actionBarMode"
+          class="absolute bottom-6 left-1/2 -translate-x-1/2 bg-surface-800 border border-surface-700 rounded-lg shadow-2xl px-6 py-3 flex items-center gap-4 z-50 w-fit"
+        >
+          <!-- Selection count -->
+          <div class="text-sm font-medium">
+            {{ selectionCount }} {{ actionBarMode === 'clips' ? 'clip' : 'file' }}{{ selectionCount > 1 ? 's' : '' }} selected
+          </div>
+
+          <!-- Divider -->
+          <div class="h-6 w-px bg-surface-600"></div>
+
+          <!-- Actions for clips -->
+          <template v-if="actionBarMode === 'clips'">
+            <Button
+              label="Export"
+              icon="pi pi-download"
+              @click="emit('export')"
+              severity="info"
+              size="small"
+            />
+            <Button
+              label="Delete"
+              icon="pi pi-trash"
+              @click="emit('delete')"
+              severity="danger"
+              size="small"
+            />
+          </template>
+
+          <!-- Actions for SD files -->
+          <template v-else>
+            <Button
+              label="Import"
+              icon="pi pi-upload"
+              @click="onImportClick"
+              severity="success"
+              size="small"
+            />
+          </template>
+
+          <!-- Clear selection -->
+          <Button
+            icon="pi pi-times"
+            @click="selectedItems = []"
+            severity="secondary"
+            size="small"
+            text
+            v-tooltip.top="'Clear selection (Esc)'"
+          />
         </div>
-
-        <!-- Divider -->
-        <div class="h-6 w-px bg-surface-600"></div>
-
-        <!-- Actions for clips -->
-        <template v-if="actionBarMode === 'clips'">
-          <Button
-            label="Export"
-            icon="pi pi-download"
-            @click="emit('export')"
-            severity="info"
-            size="small"
-          />
-          <Button
-            label="Delete"
-            icon="pi pi-trash"
-            @click="emit('delete')"
-            severity="danger"
-            size="small"
-          />
-        </template>
-
-        <!-- Actions for SD files -->
-        <template v-else>
-          <Button
-            label="Import"
-            icon="pi pi-upload"
-            @click="emit('import')"
-            severity="success"
-            size="small"
-          />
-        </template>
-
-        <!-- Clear selection -->
-        <Button
-          icon="pi pi-times"
-          @click="selectedItems = []"
-          severity="secondary"
-          size="small"
-          text
-          v-tooltip.top="'Clear selection (Esc)'"
-        />
-      </div>
-    </Transition>
+      </Transition>
+    </div>  <!-- ← End of items container -->
   </div>
 </template>
 

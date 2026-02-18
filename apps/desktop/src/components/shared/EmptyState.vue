@@ -2,6 +2,8 @@
 /**
  * Reusable empty state component with icon, title, description, and optional action.
  */
+import Button from 'primevue/button';
+
 
 defineProps<{
   icon: string;           // PrimeVue icon class (e.g., 'pi pi-inbox')

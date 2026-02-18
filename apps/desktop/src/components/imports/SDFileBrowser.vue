@@ -6,6 +6,7 @@ import type { SDFile, SDCard, DatePreset, ImportFilters } from '../../api/types'
 import { parseModeFromPath, parseDateFromFilename } from '../../utils/file_parser';
 import { getSDFileThumbnailUrl } from '../../api/thumbnails';
 import { useViewMode } from '../../composables/useViewMode';
+import EmptyState from '../shared/EmptyState.vue';
 
 const props = defineProps<{
   selectedId: number | null;
@@ -252,40 +253,40 @@ onMounted(async () => {
       </template>
     </template>
 
-    <template #empty>
-      <!-- Loading state while scanning -->
-      <EmptyState
-        v-if="loading"
-        icon="pi pi-spin pi-spinner"
-        title="Scanning for SD cards..."
-        description="Checking connected devices for dashcam footage."
-      />
-      
-      <!-- No files match filters -->
-      <EmptyState
-        v-else-if="currentVolumeUid && sdFiles.length > 0"
-        icon="pi pi-filter-slash"
-        title="No files match your filters"
-        description="Try clearing some filters or adjusting your search to see more files from your SD card."
-      />
-      
-      <!-- SD card is empty -->
-      <EmptyState
-        v-else-if="currentVolumeUid && sdFiles.length === 0"
-        icon="pi pi-inbox"
-        title="SD card is empty"
-        description="No video files were found on this SD card. Make sure your dashcam has recorded some footage."
-      />
-      
-      <!-- No SD card detected -->
-      <EmptyState
-        v-else
-        icon="pi pi-cloud-upload"
-        title="No SD card detected"
-        description="Insert a dashcam SD card to view and import video files. Make sure your SD card is properly connected."
-        actionLabel="Scan for SD Cards"
-        @action="loadSDCards"
-      />
-    </template>
+  <template #empty>
+    <!-- No SD card connected -->
+    <EmptyState
+      v-if="!currentVolumeUid"
+      icon="pi pi-cloud-upload"
+      title="No SD card detected"
+      description="Insert a dashcam SD card to view and import video files. Make sure your SD card is properly connected."
+      actionLabel="Scan for SD Cards"
+      @action="loadSDCards"
+    />
+    
+    <!-- Loading files -->
+    <EmptyState
+      v-else-if="filesLoading"
+      icon="pi pi-spin pi-spinner"
+      title="Loading files..."
+      description="Reading files from your SD card."
+    />
+    
+    <!-- SD card is empty -->
+    <EmptyState
+      v-else-if="sdFiles.length === 0"
+      icon="pi pi-inbox"
+      title="SD card is empty"
+      description="No video files were found on this SD card. Make sure your dashcam has recorded some footage."
+    />
+    
+    <!-- No files match filters -->
+    <EmptyState
+      v-else
+      icon="pi pi-filter-slash"
+      title="No files match your filters"
+      description="Try clearing some filters or adjusting your search to see more files from your SD card."
+    />
+  </template>
   </MediaBrowser>
 </template>

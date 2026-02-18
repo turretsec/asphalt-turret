@@ -9,6 +9,7 @@ from asphalt_turret_engine.db.enums import JobTypeEnum
 from asphalt_turret_engine.db.crud import job as job_crud
 from asphalt_turret_engine.jobs.handlers.import_handler import handle_import_batch
 from asphalt_turret_engine.jobs.handlers.probe_handler import handle_probe_batch, handle_probe_clip
+from asphalt_turret_engine.jobs.handlers.sd_scan_handler import handle_sd_scan
 
 
 # Logger for worker
@@ -58,6 +59,8 @@ def worker_loop() -> None:
                         handle_probe_batch(session, job)
                     elif job.type == JobTypeEnum.probe_clip:
                         handle_probe_clip(session, job)
+                    elif job.type == JobTypeEnum.sd_scan:
+                        handle_sd_scan(session, job)
                     else:
                         logger.warning(f"Unknown job type: {job.type}")
                     
