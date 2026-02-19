@@ -6,11 +6,11 @@ import { useThumbnail } from '../../composables/useThumbnail'
 const props = defineProps<{
   src: string | null | undefined
   alt?: string
-  imgClass?: string  // CSS classes forwarded to the <img> element
+  imgClass?: string
 }>()
 
 const srcRef = computed(() => props.src)
-const { thumbnailSrc, loading, failed } = useThumbnail(srcRef)
+const { thumbnailSrc, loading, failed, retry } = useThumbnail(srcRef)
 </script>
 
 <template>
@@ -24,7 +24,19 @@ const { thumbnailSrc, loading, failed } = useThumbnail(srcRef)
     v-else-if="loading && !failed"
     class="w-full h-full"
   />
-  <div v-else class="w-full h-full flex items-center justify-center text-surface-600">
+  <!--
+    Click to retry — this is the escape hatch for VirtualScroller instance
+    reuse. If a component previously exhausted MAX_RETRIES (failed = true),
+    its srcRef won't change when the scroller recycles the instance for the
+    same item, so the watch never fires. retry() manually resets state and
+    kicks off a fresh load sequence.
+  -->
+  <div
+    v-else
+    class="w-full h-full flex items-center justify-center text-surface-600 cursor-pointer hover:text-surface-400 transition-colors"
+    title="Click to retry"
+    @click.stop="retry"
+  >
     <i class="pi pi-video text-2xl"></i>
   </div>
 </template>

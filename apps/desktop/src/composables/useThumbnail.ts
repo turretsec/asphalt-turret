@@ -4,23 +4,27 @@
  * Wraps a thumbnail URL with two behaviours:
  *
  * 1. Concurrency semaphore — at most MAX_CONCURRENT requests fire at once.
- * 2. Retry on HTTP 202 — the clip thumbnail endpoint returns 202 while the
- *    thumb_batch job hasn't generated the file yet. We retry with exponential
- *    backoff until 200 arrives or MAX_RETRIES is hit.
+ * 2. Retry on HTTP 202 — the clip thumbnail endpoint returns 202 while
+ *    generation is in progress. We retry with exponential backoff.
  *
- * HTTP semantics used by the backend:
- *   200 → image ready, display it
- *   202 → not ready yet, retry after a delay
- *   404 → genuinely not found → fail fast, show placeholder
- *   5xx → server error → fail fast, show placeholder
+ * HTTP semantics:
+ *   200 → ready, display it
+ *   202 → not ready yet, retry after delay
+ *   404 → genuinely missing, fail fast
+ *   5xx → server error, fail fast
+ *
+ * WHY retry() EXISTS:
+ * VirtualScroller reuses Vue component instances when scrolling. If a
+ * component previously exhausted MAX_RETRIES (failed = true), its srcRef
+ * doesn't change when the scroller hands it back for the same item —
+ * so the watch never fires again, and failed stays true forever.
+ * retry() lets ThumbnailImage's click handler break out of that state.
  */
 
 import { ref, watch, onUnmounted } from 'vue'
 import type { Ref } from 'vue'
 
 // ─── Semaphore (module-level singleton) ───────────────────────────────────────
-// Shared across all useThumbnail instances so the total in-flight requests
-// across the entire page stays bounded regardless of how many items are rendered.
 
 const MAX_CONCURRENT = 4
 let _active = 0
@@ -43,19 +47,20 @@ function releaseSemaphore() {
   if (next) next()
 }
 
+// ─── Ready cache ──────────────────────────────────────────────────────────────
+// URLs that have returned 200 — skip the fetch on remount.
+
+const readyThumbnails = new Set<string>()
+
 // ─── Retry config ─────────────────────────────────────────────────────────────
 
 const MAX_RETRIES   = 8
-const BASE_DELAY_MS = 1_500   // first retry after 1.5s
-const MAX_DELAY_MS  = 30_000  // cap at 30s
+const BASE_DELAY_MS = 1_500
+const MAX_DELAY_MS  = 30_000
 
 function retryDelay(attempt: number): number {
   return Math.min(BASE_DELAY_MS * 2 ** attempt, MAX_DELAY_MS)
 }
-
-// Cache URLs that have already returned 200 so remounting virtualized rows
-// does not keep re-fetching/regenerating thumbnails while scrolling.
-const readyThumbnails = new Set<string>()
 
 // ─── Composable ───────────────────────────────────────────────────────────────
 
@@ -105,12 +110,8 @@ export function useThumbnail(srcRef: Ref<string | null | undefined>) {
 
       if (aborted || currentRequestId !== requestId) return
 
-      // ── 202: thumbnail not ready yet, retry with backoff ─────────────────
-      //
-      // CRITICAL: this check must come BEFORE response.ok.
-      // 202 is a 2xx status so response.ok === true for 202.
-      // If we fall through to the response.ok branch, we'd try to create a
-      // blob URL from an empty response body → broken image element.
+      // ── 202: not ready yet, retry with backoff ────────────────────────────
+      // MUST come before response.ok — 202 is 2xx so response.ok is true.
       if (response.status === 202) {
         if (attempt >= MAX_RETRIES) {
           failed.value  = true
@@ -124,7 +125,7 @@ export function useThumbnail(srcRef: Ref<string | null | undefined>) {
         return
       }
 
-      // ── 200: image is ready ───────────────────────────────────────────────
+      // ── 200: image ready ──────────────────────────────────────────────────
       if (response.ok) {
         readyThumbnails.add(src)
         if (!aborted && currentRequestId === requestId) {
@@ -134,19 +135,15 @@ export function useThumbnail(srcRef: Ref<string | null | undefined>) {
         return
       }
 
-      // ── 404 / 5xx: genuine failure, give up immediately ───────────────────
-      // Retrying a 404 won't help — the file is missing or the path is wrong.
+      // ── 404 / 5xx: give up immediately ───────────────────────────────────
       failed.value  = true
       loading.value = false
 
     } catch (error) {
-      // Expected during unmount/src-change cancellation.
       if (error instanceof DOMException && error.name === 'AbortError') {
         loading.value = false
         return
       }
-
-      // Network / fetch error — worth a few retries
       if (!aborted && currentRequestId === requestId && attempt < MAX_RETRIES) {
         retryTimer = setTimeout(() => {
           retryTimer = null
@@ -161,6 +158,7 @@ export function useThumbnail(srcRef: Ref<string | null | undefined>) {
     }
   }
 
+  // Re-run whenever src changes (different item rendered in same scroller slot)
   watch(
     srcRef,
     (newSrc) => {
@@ -182,5 +180,18 @@ export function useThumbnail(srcRef: Ref<string | null | undefined>) {
     cancelPending()
   })
 
-  return { thumbnailSrc, loading, failed }
+  // Exposed so ThumbnailImage can call this when the user clicks the camera
+  // icon — handles the VirtualScroller instance-reuse case where srcRef
+  // didn't change so the watch never fired again after a previous failure.
+  function retry() {
+    const src = srcRef.value
+    if (!src) return
+    cancelPending()
+    aborted = false
+    thumbnailSrc.value = null
+    failed.value       = false
+    load(src)
+  }
+
+  return { thumbnailSrc, loading, failed, retry }
 }

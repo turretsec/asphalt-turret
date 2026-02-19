@@ -1,5 +1,5 @@
 import shutil
-from fastapi import APIRouter, Depends, HTTPException, Request, logger
+from fastapi import APIRouter, Depends, HTTPException, Request, logger, BackgroundTasks
 from fastapi.responses import FileResponse, StreamingResponse, Response
 
 from httpx import get
@@ -16,7 +16,7 @@ from asphalt_turret_engine.db.models import Clip
 from asphalt_turret_engine.db.crud.clip import get_clips, get_clip_by_id
 from asphalt_turret_engine.config import settings
 from asphalt_turret_engine.services.thumbnail_service import get_or_generate_thumbnail
-from asphalt_turret_engine.services.thumbnail_service import get_thumbnail_path
+from asphalt_turret_engine.services.thumbnail_service import get_thumbnail_path, generate_thumbnail
 
 from asphalt_turret_api.util.streaming import _stream_video_file
 
@@ -159,14 +159,17 @@ def export_clips(
 @router.get("/{clip_id}/thumbnail")
 def get_clip_thumbnail(
     clip_id: int,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
     """
-    Return cached thumbnail for a clip.
+    Return cached thumbnail for a clip, generating it in the background if missing.
 
-    Returns 202 Accepted if the thumbnail hasn't been generated yet —
-    the client should retry after the suggested delay. Thumbnails are
-    generated in the background by thumb_batch jobs queued at import time.
+    First call: thumbnail missing → queue background generation → 202 Accepted
+    Client retries after ~1.5s: thumbnail ready → 200 with image
+
+    generate_thumbnail is idempotent, so multiple concurrent retries for the
+    same clip are safe — only one ffmpeg process will actually run.
     """
     clip = db.get(Clip, clip_id)
     if not clip:
@@ -178,16 +181,19 @@ def get_clip_thumbnail(
 
     thumbnail_path = get_thumbnail_path(video_path)
 
-    if not thumbnail_path.exists():
-        # Not ready yet — thumb_batch job will generate it.
-        # 202 tells the client "come back later", Retry-After suggests when.
-        return Response(
-            status_code=202,
-            headers={"Retry-After": "3"},
+    if thumbnail_path.exists():
+        return FileResponse(
+            thumbnail_path,
+            media_type="image/jpeg",
+            headers={"Cache-Control": "public, max-age=86400"},
         )
 
-    return FileResponse(
-        thumbnail_path,
-        media_type="image/jpeg",
-        headers={"Cache-Control": "public, max-age=86400"},
+    # Not cached yet — generate in background and tell client to retry.
+    # BackgroundTasks runs after the response is sent, in a thread pool thread,
+    # so this never blocks the API.
+    background_tasks.add_task(generate_thumbnail, video_path)
+
+    return Response(
+        status_code=202,
+        headers={"Retry-After": "2"},
     )
