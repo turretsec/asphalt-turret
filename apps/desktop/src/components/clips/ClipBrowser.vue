@@ -7,6 +7,7 @@ import { getClipThumbnailUrl } from '../../api/thumbnails';
 import { useViewMode } from '../../composables/useViewMode';
 import { formatFileSize, formatDuration } from '../../utils/format';
 import EmptyState from '../shared/EmptyState.vue';
+import ThumbnailImage from '../shared/ThumbnailImage.vue';
 
 const props = defineProps<{
   clips: Clip[];
@@ -112,20 +113,11 @@ function onSortChange(value: string) {
 
         <!-- Thumbnail (small) -->
         <div class="flex-shrink-0 w-28 h-16 bg-surface-950 rounded overflow-hidden">
-          <img
-            v-if="!thumbnailErrors.has(clip.id)"
+          <ThumbnailImage
             :src="getClipThumbnailUrl(clip.id)"
             :alt="clip.original_filename"
             class="w-full h-full object-cover"
-            @error="onThumbnailError(clip.id)"
-            loading="lazy"
           />
-          <div
-            v-else
-            class="w-full h-full flex items-center justify-center text-surface-600"
-          >
-            <i class="pi pi-video text-2xl"></i>
-          </div>
         </div>
       </template>
 
@@ -133,20 +125,11 @@ function onSortChange(value: string) {
       <template v-else>
         <!-- Thumbnail (larger, on left) -->
         <div class="flex-shrink-0 w-48 h-28 bg-surface-950 rounded overflow-hidden">
-          <img
-            v-if="!thumbnailErrors.has(clip.id)"
+          <ThumbnailImage
             :src="getClipThumbnailUrl(clip.id)"
             :alt="clip.original_filename"
             class="w-full h-full object-cover"
-            @error="onThumbnailError(clip.id)"
-            loading="lazy"
           />
-          <div
-            v-else
-            class="w-full h-full flex items-center justify-center text-surface-600"
-          >
-            <i class="pi pi-video text-3xl"></i>
-          </div>
         </div>
 
         <!-- Info (more detailed) -->

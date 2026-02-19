@@ -37,7 +37,7 @@ const emit = defineEmits<{
   (e: "import"): void;
 }>();
 
-// ─── Selection state ──────────────────────────────────────────────────────────
+// Selection state
 
 const selectedItems = shallowRef<T[]>([]);
 const focusedIndex = ref<number>(-1);
@@ -53,7 +53,7 @@ watch(focusedIndex, (newIndex) => {
   }
 });
 
-// ─── Virtual Scroller ─────────────────────────────────────────────────────────
+// Virtual Scroller
 
 // Ref to the VirtualScroller instance so we can call scrollToIndex() for
 // keyboard navigation — getElementById won't work on virtualised items.
@@ -71,7 +71,7 @@ const itemSize = computed(() => {
   return 89; // compact (default)
 });
 
-// ─── Item interactions ────────────────────────────────────────────────────────
+// Item interactions
 
 function onImportClick() {
   emit('import');
@@ -147,7 +147,7 @@ const itemClass = computed(() => {
   return 'p-3';
 });
 
-// ─── Keyboard navigation ──────────────────────────────────────────────────────
+// Keyboard navigation
 
 useKeyboardShortcuts([
   {
@@ -225,7 +225,7 @@ function scrollToFocused() {
   virtualScrollerRef.value?.scrollToIndex(focusedIndex.value);
 }
 
-// ─── Expose ───────────────────────────────────────────────────────────────────
+// Expose
 
 defineExpose({
   clearSelection: () => {

@@ -1,6 +1,6 @@
 import shutil
 from fastapi import APIRouter, Depends, HTTPException, Request, logger
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse, Response
 
 from httpx import get
 from sqlalchemy.orm import Session
@@ -16,6 +16,7 @@ from asphalt_turret_engine.db.models import Clip
 from asphalt_turret_engine.db.crud.clip import get_clips, get_clip_by_id
 from asphalt_turret_engine.config import settings
 from asphalt_turret_engine.services.thumbnail_service import get_or_generate_thumbnail
+from asphalt_turret_engine.services.thumbnail_service import get_thumbnail_path
 
 from asphalt_turret_api.util.streaming import _stream_video_file
 
@@ -161,33 +162,32 @@ def get_clip_thumbnail(
     db: Session = Depends(get_db)
 ):
     """
-    Get thumbnail for a clip.
-    
-    Generates thumbnail if it doesn't exist yet.
-    Returns JPEG image.
+    Return cached thumbnail for a clip.
+
+    Returns 202 Accepted if the thumbnail hasn't been generated yet —
+    the client should retry after the suggested delay. Thumbnails are
+    generated in the background by thumb_batch jobs queued at import time.
     """
-    # Get clip from database
     clip = db.get(Clip, clip_id)
-    
     if not clip:
         raise HTTPException(status_code=404, detail=f"Clip {clip_id} not found")
-    
-    # Get video file path
+
     video_path = settings.repository_dir / clip.repo_path
-    
     if not video_path.exists():
         raise HTTPException(status_code=404, detail=f"Video file not found: {clip.repo_path}")
-    
-    try:
-        # Get or generate thumbnail
-        thumbnail_path = get_or_generate_thumbnail(video_path)
-        
-        # Return thumbnail as image
-        return FileResponse(
-            thumbnail_path,
-            media_type="image/jpeg",
-            headers={"Cache-Control": "public, max-age=86400"}  # Cache for 24 hours
+
+    thumbnail_path = get_thumbnail_path(video_path)
+
+    if not thumbnail_path.exists():
+        # Not ready yet — thumb_batch job will generate it.
+        # 202 tells the client "come back later", Retry-After suggests when.
+        return Response(
+            status_code=202,
+            headers={"Retry-After": "3"},
         )
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to generate thumbnail: {str(e)}")
+
+    return FileResponse(
+        thumbnail_path,
+        media_type="image/jpeg",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )

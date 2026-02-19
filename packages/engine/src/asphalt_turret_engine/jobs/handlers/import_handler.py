@@ -149,12 +149,19 @@ def handle_import_batch(session: Session, job: Job) -> None:
 
     session.flush()
 
-    # 5. Queue a probe job for all newly imported clips
+    # 5. Queue a probe and thumbnail job for all newly imported clips
     if newly_imported_clip_ids:
         probe_job = job_crud.create_probe_batch_job(session, clip_ids=newly_imported_clip_ids)
+        
         session.flush()
         logger.info(
             f"Created probe job {probe_job.id} for {len(newly_imported_clip_ids)} new clip(s)"
+        )
+
+        thumb_job = job_crud.create_thumb_batch_job(session, clip_ids=newly_imported_clip_ids)
+        session.flush()
+        logger.info(
+            f"Created thumbnail job {thumb_job.id} for {len(newly_imported_clip_ids)} new clip(s)"
         )
 
 def _import_single_file(

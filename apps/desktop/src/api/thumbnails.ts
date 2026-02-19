@@ -5,5 +5,5 @@ export function getClipThumbnailUrl(clipId: number): string {
 }
 
 export function getSDFileThumbnailUrl(volumeUid: string, fileId: number): string {
-  return `${API_BASE}/sd-cards/${volumeUid}/files/${fileId}/thumbnail`;
+  return `${API_BASE}/sd-card/${volumeUid}/files/${fileId}/thumbnail`;
 }

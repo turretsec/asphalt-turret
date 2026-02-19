@@ -7,6 +7,7 @@ import { getSDFileThumbnailUrl } from '../../api/thumbnails';
 import { useViewMode } from '../../composables/useViewMode';
 import { formatFileSize } from '../../utils/format';
 import EmptyState from '../shared/EmptyState.vue';
+import ThumbnailImage from '../shared/ThumbnailImage.vue';
 
 const props = defineProps<{
   files: SDFile[];
@@ -81,17 +82,11 @@ function onSelectFile(file: SDFile) {
       <!-- Compact View -->
       <template v-else-if="viewMode === 'compact'">
         <div class="flex-shrink-0 w-28 h-16 bg-surface-950 rounded overflow-hidden">
-          <img
-            v-if="!thumbnailErrors.has(file.id)"
+          <ThumbnailImage
             :src="getSDFileThumbnailUrl(currentVolumeUid, file.id)"
             :alt="file.rel_path"
             class="w-full h-full object-cover"
-            loading="lazy"
-            @error="onThumbnailError(file.id)"
           />
-          <div v-else class="w-full h-full flex items-center justify-center text-surface-600">
-            <i class="pi pi-video text-2xl"></i>
-          </div>
         </div>
         <div class="flex-1 min-w-0">
           <div class="text-sm truncate">{{ file.rel_path }}</div>
@@ -105,17 +100,11 @@ function onSelectFile(file: SDFile) {
       <!-- Expanded View -->
       <template v-else>
         <div class="flex-shrink-0 w-48 h-28 bg-surface-950 rounded overflow-hidden">
-          <img
-            v-if="!thumbnailErrors.has(file.id)"
+          <ThumbnailImage
             :src="getSDFileThumbnailUrl(currentVolumeUid, file.id)"
             :alt="file.rel_path"
             class="w-full h-full object-cover"
-            loading="lazy"
-            @error="onThumbnailError(file.id)"
           />
-          <div v-else class="w-full h-full flex items-center justify-center text-surface-600">
-            <i class="pi pi-video text-3xl"></i>
-          </div>
         </div>
         <div class="flex-1 min-w-0 flex flex-col justify-center">
           <div class="text-base font-medium truncate">{{ file.rel_path }}</div>

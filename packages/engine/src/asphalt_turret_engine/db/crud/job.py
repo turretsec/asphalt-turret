@@ -248,3 +248,40 @@ def enqueue_clip_probe(session: Session, *, clip_id: int) -> Job:
     )
     session.add(job)
     return job
+
+def create_thumb_batch_job(
+    session: Session,
+    *,
+    clip_ids: list[int]
+) -> Job:
+    """
+    Create a batch thumbnail generation job for multiple clips.
+
+    Queued automatically after import alongside probe_batch so that
+    thumbnails are ready by the time the user opens the clip browser.
+    The HTTP thumbnail endpoint checks the cache and returns 404 if the
+    thumbnail isn't ready yet — the frontend retries with backoff.
+
+    Args:
+        session: Database session
+        clip_ids: List of Clip IDs to generate thumbnails for
+
+    Returns:
+        Created Job instance (caller must commit)
+    """
+    metadata = {
+        "clip_ids": clip_ids,
+        "completed": [],
+        "failed": [],
+        "total": len(clip_ids),
+    }
+
+    job = Job(
+        type=JobTypeEnum.thumb_batch,
+        state=JobStateEnum.queued,
+        metadata_json=json.dumps(metadata),
+        progress=0,
+        message=f"Queued: thumbnails for {len(clip_ids)} clips",
+    )
+    session.add(job)
+    return job
