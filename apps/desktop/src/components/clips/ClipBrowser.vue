@@ -5,7 +5,6 @@ import { ref } from 'vue';
 import type { Clip } from '../../api/types';
 import { getClipThumbnailUrl } from '../../api/thumbnails';
 import { useViewMode } from '../../composables/useViewMode';
-import type { SDFile, SDCard, DatePreset, Fi } from '../../api/types';
 import { formatFileSize, formatDuration } from '../../utils/format';
 import EmptyState from '../shared/EmptyState.vue';
 

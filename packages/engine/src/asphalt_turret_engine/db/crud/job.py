@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone, timedelta
 import json
-from sqlalchemy import CursorResult, select, update, func
+from sqlalchemy import select, update, func
 from sqlalchemy.orm import Session
 
 from asphalt_turret_engine.db.models.job import Job
@@ -16,15 +16,14 @@ def claim_next_job(session: Session, *, job_type: JobTypeEnum | None = None) -> 
     stmt = select(Job.id).where(Job.state == JobStateEnum.queued)
     if job_type is not None:
         stmt = stmt.where(Job.type == job_type)
-    
+
     stmt = stmt.order_by(Job.created_at.asc()).limit(1)
     row = session.execute(stmt).first()
     if not row:
         return None
-    
+
     job_id = row[0]
-    
-    # Try to claim the job
+
     upd = (
         update(Job)
         .where(Job.id == job_id, Job.state == JobStateEnum.queued)
@@ -35,29 +34,26 @@ def claim_next_job(session: Session, *, job_type: JobTypeEnum | None = None) -> 
         )
     )
     session.execute(upd)
-    session.commit()  # Commit the claim
-    
-    # Fetch and return the job
-    # If another worker claimed it, this job's state won't be 'running' with our session
+    session.commit()
+
     job = session.get(Job, job_id)
-    
-    # Double-check we actually claimed it
+
     if job and job.state == JobStateEnum.running:
         return job
-    
+
     return None
 
 def mark_job_completed(session: Session, job: Job, *, message: str | None = None) -> None:
     job.state = JobStateEnum.completed
     job.progress = 100
-    job.updated_at = func.now()
+    job.updated_at = datetime.now(timezone.utc)
     if message is not None:
         job.message = message
     session.commit()
 
 def mark_job_failed(session: Session, job: Job, *, message: str | None = None) -> None:
     job.state = JobStateEnum.failed
-    job.updated_at = func.now()
+    job.updated_at = datetime.now(timezone.utc)
     job.message = message
     session.commit()
 
@@ -78,6 +74,7 @@ def requeue_stale_running_jobs(session: Session, *, stale_after_minutes: int = 1
         )
     )
     res = session.execute(stmt)
+    session.commit()
     return int(res.rowcount or 0)  # type: ignore[attr-defined]
 
 def create_import_batch_job(
