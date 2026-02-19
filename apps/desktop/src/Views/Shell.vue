@@ -352,6 +352,14 @@ onMounted(async () => {
 
             <ImportView
               v-else-if="mode === 'import'"
+              :files="sdFilesManager.filteredSDFiles.value"
+              :loading="sdFilesManager.loading.value"
+              :filesLoading="sdFilesManager.filesLoading.value"
+              :error="sdFilesManager.error.value"
+              :currentVolumeUid="sdFilesManager.currentVolumeUid.value"
+              :availableCards="sdFilesManager.availableCards.value"
+              :query="sdFilesManager.query.value"
+              :currentImportJobId="currentImportJobId"
               @select="onSelectSDFile"
               @selection-change="sdFilesManager.setSelection"
               @import-complete="onImportComplete"
@@ -359,11 +367,7 @@ onMounted(async () => {
               @volume-change="handleVolumeChange"
               @scan-cards="handleScanSDCards"
               @import="handleImport"
-              :sdFileFilters="sdFilesManager.filters"
-              :currentVolumeUid="sdFilesManager.currentVolumeUid.value"
-              :currentImportJobId="currentImportJobId"
-              :availableCards="sdFilesManager.availableCards.value"
-              :query="sdFilesManager.query.value"
+              @load="sdFilesManager.loadSDCards"
               ref="importViewRef"
             />
 
