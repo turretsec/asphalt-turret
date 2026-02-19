@@ -100,12 +100,7 @@ export function useThumbnail(srcRef: Ref<string | null | undefined>) {
 
     try {
       controller = new AbortController()
-      const response = await fetch(src, {
-        method: 'GET',
-        signal: controller.signal,
-        // We're polling 202 -> 200 endpoints; avoid browser caching stale 202.
-        cache: 'no-store',
-      })
+      const response = await fetch(src, { method: 'GET', signal: controller.signal })
       controller = null
 
       if (aborted || currentRequestId !== requestId) return
