@@ -29,7 +29,7 @@ const datePresets: { label: string; value: DatePreset }[] = [
 </script>
 
 <template>
-  <div class="flex flex-col items-center w-full bg-surface-900 border-b border-surface-700 p-2 gap-2">
+  <div class="flex flex-col items-center w-full bg-surface-900 p-2 gap-2 rounded-sm">
     <!-- Search (shared) -->
     <InputText
       v-model="query"
@@ -48,6 +48,9 @@ const datePresets: { label: string; value: DatePreset }[] = [
       class="flex w-full"
       display="chip"
       size="small"
+      :pt="{
+        label: { class: 'flex flex-col gap-1 items-start' },
+      }"
     />
 
     <!-- SLOT: View-specific filters -->
@@ -70,6 +73,10 @@ const datePresets: { label: string; value: DatePreset }[] = [
       placeholder="Date range"
       class="flex w-full"
       size="small"
+      :pt="{
+        root: { class: 'flex flex-col gap-1' },
+        InputText: { class: 'flex w-full' },
+      }"
     />
 
     <!-- SLOT: Action buttons -->

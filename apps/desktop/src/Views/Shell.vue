@@ -22,7 +22,6 @@ import { exportClips } from '../api/clips';
 import { useClips } from '../composables/useClips';
 import { useSDFiles } from '../composables/useSDFiles';
 import { useActiveJobs } from '../composables/useActiveJobs';
-import JobProgress from '../components/shared/JobProgress.vue';
 import { scanSDCards } from '../api/sd_card';
 
 const clipsManager = useClips();
@@ -263,8 +262,9 @@ onMounted(async () => {
   <Toast />
   <ConfirmDialog />
   
-  <div class="flex flex-row w-full h-screen">
-    <aside class="w-56 border-r border-surface-800 p-2 flex flex-col">
+  <div class="flex flex-row w-full h-screen bg-surface-950">
+    <aside class="w-56 pt-2 pl-2 pb-2 flex flex-col">
+
       <Nav @select="onSelectMode" />
       
       <!-- Import sidebar (NO MORE IMPORT BUTTON) -->
@@ -286,6 +286,9 @@ onMounted(async () => {
             placeholder="State"
             class="flex w-full"
             size="small"
+            :pt="{
+              label: { class: 'flex flex-col gap-1 items-start' },
+            }"
           />
         </template>
         
@@ -311,6 +314,9 @@ onMounted(async () => {
             placeholder="Camera"
             class="flex w-full"
             size="small"
+            :pt="{
+              label: { class: 'flex flex-col gap-1 items-start' },
+            }"
           />
         </template>
         
@@ -318,10 +324,15 @@ onMounted(async () => {
       </FileToolbar>
     </aside>
 
-    <Splitter class="flex-1 h-full">
-      <SplitterPanel class="flex items-center justify-center">
-        <Splitter orientation="vertical" style="height: 100%;">
-          <SplitterPanel class="flex flex-col items-center justify-center p-2 bg-surface-950">
+    <Splitter class="flex-1 h-full rounded-sm overflow-hidden bg-surface-950 p-2 border-none"
+    >
+      <SplitterPanel class="flex items-center justify-center rounded-sm">
+        <Splitter orientation="vertical" style="height: 100%;"
+          :pt="{
+            gutter: { class: 'bg-surface-800', width: '1px' }
+          }"
+        >
+          <SplitterPanel class="flex flex-col items-center justify-center p-2 bg-surface-900">
 
             <RepoView
               v-if="mode === 'repo'"
@@ -357,7 +368,7 @@ onMounted(async () => {
 
           </SplitterPanel>
           
-          <SplitterPanel class="flex items-center justify-center p-2 bg-surface-950" v-if="mode !== 'settings'">
+          <SplitterPanel class="flex items-center justify-center bg-surface-950 rounded-sm" v-if="mode !== 'settings'">
             <MediaPlayer 
               :media="selectedMedia" 
             />

@@ -320,19 +320,26 @@ defineExpose({
     </div>
 
     <!-- Items List Container -->
-    <div v-if="!loading && items.length > 0" class="flex-1 relative overflow-hidden">  <!-- ← This is the positioning context -->
-      <ul class="h-full overflow-auto">
+    <div v-if="!loading && items.length > 0" class="flex-1 relative overflow-hidden
+      ">
+      <ul class="h-full overflow-auto
+      [&::-webkit-scrollbar]:w-2
+      [&::-webkit-scrollbar-track]:bg-gray-100
+      [&::-webkit-scrollbar-thumb]:bg-gray-300
+      dark:[&::-webkit-scrollbar-track]:bg-neutral-700
+      dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500
+      ">
         <li
           v-for="(item, index) in items"
           :key="item.id"
           :id="`item-${index}`"
           :class="[
             itemClass,
-            'border-b border-surface-800 hover:bg-surface-900 cursor-pointer transition-colors flex items-center gap-3',
+            'border-b border-surface-800 hover:bg-surface-800 cursor-pointer transition-colors flex items-center gap-3',
             {
-              'bg-blue-950': isFocusedItem(item) && !isCheckedItem(item),
-              'bg-yellow-950': isCheckedItem(item) && !isFocusedItem(item),
-              'bg-cyan-950': isCheckedItem(item) && isFocusedItem(item),
+              'bg-surface-700 focus-ring': isFocusedItem(item),
+            //  'bg-surface-700': isCheckedItem(item) && !isFocusedItem(item),
+            //  'bg-surface-700': isCheckedItem(item) && isFocusedItem(item),
             }
           ]"
           @click="onItemClick(item, $event, index)"

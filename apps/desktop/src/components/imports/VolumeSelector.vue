@@ -30,7 +30,7 @@ function onChange(volumeUid: string) {
 
 <template>
   <div v-if="cardOptions.length > 0" class="flex items-center gap-2">
-    <span class="text-sm text-surface-400">SD Card:</span>
+    <span class="text-sm text-surface-400">SD Card</span>
     <Select
       :modelValue="currentVolumeUid"
       @update:modelValue="onChange"

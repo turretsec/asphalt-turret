@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import MediaBrowser from '../shared/MediaBrowser.vue';
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { listSDCardFiles, listSDCards } from '../../api/sd_card';
 import type { SDFile, SDCard, DatePreset, ImportFilters } from '../../api/types';
 import { parseModeFromPath, parseDateFromFilename } from '../../utils/file_parser';

@@ -1,10 +1,6 @@
 @layer primevue {
   :root {
     /* Surfaces */
-    --p-surface-0: #0f1115;
-    --p-surface-50: #12141a;
-    --p-surface-100: #161a22;
-    --p-surface-200: #1c212c;
 
     /* Text */
     --p-text-color: #e6e8ee;
@@ -33,4 +29,6 @@
     --p-form-field-placeholder-color: var(--p-text-muted-color);
     --p-form-field-icon-color: var(--p-text-muted-color);*/
   }
+
+
 }

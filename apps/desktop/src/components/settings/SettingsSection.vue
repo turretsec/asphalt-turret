@@ -9,7 +9,7 @@ defineProps<{
   <div class="space-y-4">
     <!-- Section Header -->
     <div>
-      <h2 class="text-lg font-semibold">{{ title }}</h2>
+      <div class="font-semibold text-sm">{{ title }}</div>
       <p v-if="description" class="text-sm text-surface-400 mt-1">
         {{ description }}
       </p>

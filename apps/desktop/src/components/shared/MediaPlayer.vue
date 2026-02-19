@@ -83,7 +83,7 @@ watch(
 
 
 <template>
-  <div class="h-full flex flex-col w-full">
+  <div class="h-full flex flex-col w-full bg-surface-900">
     <div class="flex flex-col w-full p-3 border-b border-surface-800">
       <div class="font-semibold">Player</div>
       <div class="text-xs opacity-70 mt-1">{{ displayName }}</div>

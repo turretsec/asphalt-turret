@@ -1,12 +1,11 @@
 <script setup lang="ts">
-
-import PanelMenu from "primevue/panelmenu";
-
+import Menu from "primevue/menu";
+import { ref } from "vue";
 const emit = defineEmits<{
   (e: "select", mode: "repo" | "import" | "settings"): void;
 }>();
 
-const items = [
+const items = ref([
   {
     label: "Repository",
     icon: "pi pi-database",
@@ -22,10 +21,18 @@ const items = [
     icon: "pi pi-cog",
     command: () => emit("select", "settings"),
   }
-];
+]);
 
 </script>
 
 <template>
-    <PanelMenu :model="items" class="border-none" />
+  <Menu
+    :model="items"
+    class="border-none bg-surface-950"
+    :pt="{
+      itemLink: { class: 'flex items-center gap-2' },
+      itemIcon: { class: 'leading-none text-sm' },
+      itemLabel: { class: 'text-sm leading-none text-surface-200' },
+    }"
+  />
 </template>

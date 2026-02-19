@@ -53,11 +53,9 @@ function handleReset() {
 <template>
   <div class="h-full flex flex-col w-full overflow-auto">
     <!-- Header -->
-    <div class="p-6 border-b border-surface-800">
-      <h1 class="text-2xl font-bold">Settings</h1>
-      <p class="text-sm text-surface-400 mt-1">
-        Configure your dashcam app preferences
-      </p>
+    <div class="flex flex-col w-full p-3 border-b border-surface-800">
+      <div class="font-semibold">Settings</div>
+      <div class="text-xs opacity-70 mt-1">Customize your application preferences</div>
     </div>
 
     <!-- Loading State -->
@@ -95,11 +93,12 @@ function handleReset() {
             <InputText
               :model-value="repoDraft"
               class="flex-1"
+              size="small"
               disabled
             />
             <Button
-            label="Change"
             icon="pi pi-folder-open"
+            size="small"
             severity="secondary"
             :loading="saving"
             @click="() => pickAndSaveDir('repository_dir')"
@@ -116,11 +115,12 @@ function handleReset() {
             <InputText
               :model-value="incomingDraft"
               class="flex-1"
+              size="small"
               disabled
             />
             <Button
-            label="Change"
             icon="pi pi-folder-open"
+            size="small"
             severity="secondary"
             :loading="saving"
             @click="() => pickAndSaveDir('incoming_dir')"
@@ -167,6 +167,7 @@ function handleReset() {
             optionLabel="label"
             optionValue="value"
             class="w-48"
+            size="small"
 />
         </SettingsItem>
 
@@ -180,6 +181,7 @@ function handleReset() {
             :max="1920"
             :step="16"
             class="w-48"
+            size="small"
             @update:modelValue="(v) => setNumber('thumbnail_width', Number(v ?? 320), false)"
           />
         </SettingsItem>
@@ -194,6 +196,7 @@ function handleReset() {
             :max="1080"
             :step="16"
             class="w-48"
+            size="small"
             @update:modelValue="(v) => setNumber('thumbnail_height', Number(v ?? 180), false)"
           />    
         </SettingsItem>
@@ -221,6 +224,7 @@ function handleReset() {
             :max="120"
             :step="5"
             class="w-48"
+            size="small"
             @update:modelValue="(v) => setNumber('ffprobe_timeout_s', Number(v ?? 30), false)"
           />
         </SettingsItem>
@@ -262,6 +266,7 @@ function handleReset() {
         <Button
         label="Reset to Defaults"
         icon="pi pi-refresh"
+        size="small"
         severity="danger"
         outlined
         :loading="saving"

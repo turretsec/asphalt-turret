@@ -70,7 +70,7 @@ function onScanCards() {
     <!-- Volume Selector Header (if multiple cards) -->
     <div 
       v-if="availableCards.filter(c => c.is_connected).length > 0"
-      class="p-3 border-b border-surface-800"
+      class="p-3 border-b border-surface-800 flex flex-row gap-2"
     >
       <VolumeSelector
         :cards="availableCards"
@@ -80,11 +80,11 @@ function onScanCards() {
 
       <!-- Scan button -->
       <Button
-        label="Scan SD Cards"
-        icon="pi pi-refresh"
+        icon="pi pi-play"
         @click="onScanCards"
         severity="secondary"
         size="small"
+        v-tooltip="'Scan Files'"
       />
     </div>
     <!-- Job Progress Indicator (floating, centered over this view) -->

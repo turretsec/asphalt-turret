@@ -11,6 +11,9 @@ import "./styles/app.css";
 //import "./styles/primevue-overrides.css";
 import { definePreset } from "@primeuix/themes";
 
+import Tooltip from 'primevue/tooltip';
+import { TooltipStyle } from "primevue";
+
 const app = createApp(App);
 
 const turretTheme = definePreset(Aura, {
@@ -28,6 +31,19 @@ const turretTheme = definePreset(Aura, {
       900: '{violet.900}',
       950: '{violet.950}'
     },
+    colorScheme: {
+      dark: {
+        surface: {
+          700: '#2f2a3d',
+          750: '#292436',
+          800: '#221f2e',
+          850: '#1d1a28',
+          900: '#181622',
+          950: '#12101a',
+        }
+      }
+    }
+
     // You will also want to override surfaces/neutral scale here
     // (exact key names depend on Aura + PrimeUIX version)
   },
@@ -54,4 +70,5 @@ app.use(PrimeVue, {
 app.use(ToastService);
 app.use(ConfirmationService);
 app.use(VueQueryPlugin)
+app.directive('tooltip', Tooltip);
 app.mount("#app");

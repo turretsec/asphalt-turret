@@ -6,10 +6,10 @@ defineProps<{
 </script>
 
 <template>
-  <div class="flex items-center justify-between py-3">
+  <div class="flex flex-col justify-between gap-2">
     <!-- Label & Description -->
-    <div class="flex-1 pr-8">
-      <div class="font-medium">{{ label }}</div>
+    <div class="flex flex-col">
+      <div class="text-sm">{{ label }}</div>
       <div v-if="description" class="text-sm text-surface-400 mt-1">
         {{ description }}
       </div>
