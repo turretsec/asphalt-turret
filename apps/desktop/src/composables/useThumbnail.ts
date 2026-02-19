@@ -53,6 +53,10 @@ function retryDelay(attempt: number): number {
   return Math.min(BASE_DELAY_MS * 2 ** attempt, MAX_DELAY_MS)
 }
 
+// Cache URLs that have already returned 200 so remounting virtualized rows
+// does not keep re-fetching/regenerating thumbnails while scrolling.
+const readyThumbnails = new Set<string>()
+
 // ─── Composable ───────────────────────────────────────────────────────────────
 
 export function useThumbnail(srcRef: Ref<string | null | undefined>) {
@@ -61,32 +65,50 @@ export function useThumbnail(srcRef: Ref<string | null | undefined>) {
   const failed       = ref(false)
 
   let aborted    = false
+  let requestId  = 0
   let retryTimer: ReturnType<typeof setTimeout> | null = null
+  let controller: AbortController | null = null
 
   function cancelPending() {
     aborted = true
+    requestId += 1
+    controller?.abort()
+    controller = null
     if (retryTimer !== null) {
       clearTimeout(retryTimer)
       retryTimer = null
     }
   }
 
-  async function load(src: string, attempt = 0) {
-    if (aborted) return
+  async function load(src: string, attempt = 0, currentRequestId = requestId) {
+    if (aborted || currentRequestId !== requestId) return
+
+    if (readyThumbnails.has(src)) {
+      thumbnailSrc.value = src
+      loading.value = false
+      return
+    }
 
     loading.value = true
 
     await acquireSemaphore()
 
-    if (aborted) {
+    if (aborted || currentRequestId !== requestId) {
       releaseSemaphore()
       return
     }
 
     try {
-      const response = await fetch(src, { method: 'GET' })
+      controller = new AbortController()
+      const response = await fetch(src, {
+        method: 'GET',
+        signal: controller.signal,
+        // We're polling 202 -> 200 endpoints; avoid browser caching stale 202.
+        cache: 'no-store',
+      })
+      controller = null
 
-      if (aborted) return
+      if (aborted || currentRequestId !== requestId) return
 
       // ── 202: thumbnail not ready yet, retry with backoff ─────────────────
       //
@@ -102,16 +124,16 @@ export function useThumbnail(srcRef: Ref<string | null | undefined>) {
         }
         retryTimer = setTimeout(() => {
           retryTimer = null
-          load(src, attempt + 1)
+          load(src, attempt + 1, currentRequestId)
         }, retryDelay(attempt))
         return
       }
 
       // ── 200: image is ready ───────────────────────────────────────────────
       if (response.ok) {
-        const blob = await response.blob()
-        if (!aborted) {
-          thumbnailSrc.value = URL.createObjectURL(blob)
+        readyThumbnails.add(src)
+        if (!aborted && currentRequestId === requestId) {
+          thumbnailSrc.value = src
           loading.value      = false
         }
         return
@@ -122,12 +144,18 @@ export function useThumbnail(srcRef: Ref<string | null | undefined>) {
       failed.value  = true
       loading.value = false
 
-    } catch {
+    } catch (error) {
+      // Expected during unmount/src-change cancellation.
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        loading.value = false
+        return
+      }
+
       // Network / fetch error — worth a few retries
-      if (!aborted && attempt < MAX_RETRIES) {
+      if (!aborted && currentRequestId === requestId && attempt < MAX_RETRIES) {
         retryTimer = setTimeout(() => {
           retryTimer = null
-          load(src, attempt + 1)
+          load(src, attempt + 1, currentRequestId)
         }, retryDelay(attempt))
       } else {
         failed.value  = true
@@ -143,11 +171,6 @@ export function useThumbnail(srcRef: Ref<string | null | undefined>) {
     (newSrc) => {
       cancelPending()
       aborted = false
-
-      // Free the previous blob URL from memory
-      if (thumbnailSrc.value?.startsWith('blob:')) {
-        URL.revokeObjectURL(thumbnailSrc.value)
-      }
       thumbnailSrc.value = null
       failed.value       = false
 
@@ -162,9 +185,6 @@ export function useThumbnail(srcRef: Ref<string | null | undefined>) {
 
   onUnmounted(() => {
     cancelPending()
-    if (thumbnailSrc.value?.startsWith('blob:')) {
-      URL.revokeObjectURL(thumbnailSrc.value)
-    }
   })
 
   return { thumbnailSrc, loading, failed }
