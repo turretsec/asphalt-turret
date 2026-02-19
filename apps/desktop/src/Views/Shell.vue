@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, watch } from 'vue';
+import { useQueryClient } from '@tanstack/vue-query';
 import { open } from '@tauri-apps/plugin-dialog';
 
 import MultiSelect from 'primevue/multiselect';
 import Splitter from 'primevue/splitter';
 import SplitterPanel from 'primevue/splitterpanel';
-import Toast from 'primevue/toast'; 
+import Toast from 'primevue/toast';
 import { useToast } from 'primevue/usetoast';
 import ConfirmDialog from 'primevue/confirmdialog';
 import { useConfirm } from 'primevue/useconfirm';
@@ -16,162 +17,83 @@ import Nav from '../components/common/Nav.vue';
 import RepoView from './RepoView.vue';
 import ImportView from './ImportView.vue';
 import SettingsView from './SettingsView.vue';
+
 import type { SDFile, PlayableMedia, Clip } from '../api/types';
 import { CameraEnum, SDFileImportState } from '../api/types';
 import { exportClips } from '../api/clips';
-import { useClips } from '../composables/useClips';
-import { useSDFiles } from '../composables/useSDFiles';
-import { useActiveJobs } from '../composables/useActiveJobs';
 import { scanSDCards } from '../api/sd_card';
 
-const clipsManager = useClips();
-const sdFilesManager = useSDFiles();
+import { useClips, CLIPS_QUERY_KEY } from '../composables/useClips';
+import { useSDFiles, SD_CARDS_QUERY_KEY, SD_FILES_QUERY_KEY } from '../composables/useSDFiles';
+import { useActiveJobs } from '../composables/useActiveJobs';
 
-const selectedMedia = ref<PlayableMedia | null>(null);
-const mode = ref<"repo" | "import" | "settings">("repo");
-const toast = useToast();
+// State
+
+const queryClient    = useQueryClient();
+const clipsManager   = useClips();
+const sdFilesManager = useSDFiles();
+const { addJob }     = useActiveJobs();
+
+const selectedMedia      = ref<PlayableMedia | null>(null);
+const mode               = ref<'repo' | 'import' | 'settings'>('repo');
+const currentImportJobId = ref<number | null>(null);
+const importViewRef      = ref<InstanceType<typeof ImportView> | null>(null);
+
+const toast   = useToast();
 const confirm = useConfirm();
 
-const { addJob, hasActiveJobs } = useActiveJobs();
-const currentImportJobId = ref<number | null>(null);
+// Filter
 
-const importViewRef = ref<InstanceType<typeof ImportView> | null>(null);
+const cameraOptions: { label: string; value: CameraEnum }[] = [
+  { label: 'Front',   value: CameraEnum.FRONT   },
+  { label: 'Rear',    value: CameraEnum.REAR    },
+  { label: 'Unknown', value: CameraEnum.UNKNOWN },
+];
 
-function onSelectMode(m: "repo" | "import" | "settings") {
+const stateOptions: { label: string; value: SDFileImportState }[] = [
+  { label: 'New',      value: SDFileImportState.NEW      },
+  { label: 'Imported', value: SDFileImportState.IMPORTED },
+  { label: 'Pending',  value: SDFileImportState.PENDING  },
+  { label: 'Failed',   value: SDFileImportState.FAILED   },
+];
+
+// Navigation
+
+function onSelectMode(m: 'repo' | 'import' | 'settings') {
   mode.value = m;
 }
 
+function handleGoToImport() {
+  mode.value = 'import';
+}
+
+// Clear selection + search when switching tabs.
+// No data fetching here — TanStack handles freshness automatically.
+watch(mode, () => {
+  selectedMedia.value = null;
+  clipsManager.query.value  = '';
+  sdFilesManager.query.value = '';
+  clipsManager.clearSelection();
+  sdFilesManager.clearSelection();
+});
+
+// Media Selection
+
 function onSelectClip(clip: Clip) {
-  selectedMedia.value = {
-    type: 'clip',
-    data: clip
-  };
+  selectedMedia.value = { type: 'clip', data: clip };
 }
 
 function onSelectSDFile(payload: { file: SDFile; volumeUid: string }) {
-  selectedMedia.value = {
-    type: 'sd_file',
-    data: payload.file,
-    volume_uid: payload.volumeUid
-  };
+  selectedMedia.value = { type: 'sd_file', data: payload.file, volume_uid: payload.volumeUid };
 }
 
-// Camera filter options
-const cameraOptions: { label: string; value: CameraEnum }[] = [
-  { label: "Front", value: CameraEnum.FRONT },
-  { label: "Rear", value: CameraEnum.REAR },
-  { label: "Unknown", value: CameraEnum.UNKNOWN },
-];
+// Import
 
-// State filter options
-const stateOptions: { label: string; value: SDFileImportState }[] = [
-  { label: "New", value: SDFileImportState.NEW },
-  { label: "Imported", value: SDFileImportState.IMPORTED },
-  { label: "Pending", value: SDFileImportState.PENDING },
-  { label: "Failed", value: SDFileImportState.FAILED },
-];
-
-// Delete handler
-async function handleDelete() {
-  if (clipsManager.selectedClips.value.length === 0) return;
-  
-  const count = clipsManager.selectedClips.value.length;
-  const plural = count > 1 ? 's' : '';
-  
-  confirm.require({
-    message: `Are you sure you want to delete ${count} clip${plural}? This cannot be undone.`,
-    header: 'Delete Confirmation',
-    icon: 'pi pi-exclamation-triangle',
-    rejectLabel: 'Cancel',
-    acceptLabel: 'Delete',
-    rejectClass: 'p-button-secondary',
-    acceptClass: 'p-button-danger',
-    accept: async () => {
-      try {
-        const response = await clipsManager.deleteSelected();
-        
-        toast.add({
-          severity: 'success',
-          summary: 'Clips Deleted',
-          detail: response.message,
-          life: 3000
-        });
-        
-      } catch (e) {
-        toast.add({
-          severity: 'error',
-          summary: 'Delete Failed',
-          detail: e instanceof Error ? e.message : 'Unknown error',
-          life: 5000
-        });
-      }
-    }
-  });
-}
-
-// Export handler
-async function handleExport() {
-  if (clipsManager.selectedClips.value.length === 0) return;
-  
-  const count = clipsManager.selectedClips.value.length;
-  const plural = count > 1 ? 's' : '';
-  
-  try {
-    const selected = await open({
-      directory: true,
-      multiple: false,
-      title: `Select folder to export ${count} clip${plural}`
-    });
-    
-    if (!selected) return;
-    
-    const response = await exportClips({
-      clip_ids: clipsManager.selectedClips.value.map(c => c.id),
-      destination_dir: selected as string
-    });
-    
-    toast.add({
-      severity: 'success',
-      summary: 'Export Complete',
-      detail: `${response.exported_count} clips exported to ${response.destination}`,
-      life: 5000
-    });
-    
-    clipsManager.clearSelection();
-    
-  } catch (e) {
-    toast.add({
-      severity: 'error',
-      summary: 'Export Failed',
-      detail: e instanceof Error ? e.message : 'Unknown error',
-      life: 5000
-    });
-  }
-}
-
-// Import handler
 async function handleImport() {
-  if (sdFilesManager.selectedSDFiles.value.length === 0) return;
-  
   try {
     const response = await sdFilesManager.importSelected();
-    
-    if (response.job_id > 0) {
-      // Track this job
-      currentImportJobId.value = response.job_id;
-      addJob(response.job_id);
-    }
-    
-    toast.add({
-      severity: 'info',
-      summary: 'Import Started',
-      detail: `Importing ${response.total_files} files...`,
-      life: 3000,
-    });
-    
-    // Clear selection after starting import
-    sdFilesManager.clearSelection();
-    
+    currentImportJobId.value = response.job_id;
+    addJob(response.job_id);
   } catch (e) {
     toast.add({
       severity: 'error',
@@ -184,47 +106,38 @@ async function handleImport() {
 
 function onImportComplete() {
   currentImportJobId.value = null;
-  
-  // Reload clips
-  clipsManager.load();
-  
-  // Reload SD card data
-  sdFilesManager.loadSDCards().then(() => {
-    // Force ImportView to refresh after data is loaded
-    importViewRef.value?.refresh();
-  });
-}
 
-function handleGoToImport() {
-  mode.value = 'import';
+  // The job finished — the data on the server has changed.
+  // Invalidate both caches so TanStack refetches them.
+  // Any component subscribed to these keys updates automatically.
+  queryClient.invalidateQueries({ queryKey: CLIPS_QUERY_KEY });
+  queryClient.invalidateQueries({ queryKey: ['sd-files'] });  // all sd-files queries
 }
 
 function onImportDismiss() {
   currentImportJobId.value = null;
-  // Don't reload - just hide the indicator
+  // Job is still running in background — don't reload yet
 }
 
-async function handleVolumeChange(volumeUid: string) {
-  await sdFilesManager.switchToCard(volumeUid);
-}
-
+// SD Card Scanning & Volume Changes
 
 async function handleScanSDCards() {
   try {
-    const response = await scanSDCards();
-    
+    await scanSDCards();
+
     toast.add({
       severity: 'info',
       summary: 'Scanning SD Cards',
       detail: 'Looking for new files...',
       life: 3000,
     });
-    
-    // Reload after a delay to show new files
-    setTimeout(() => {
-      sdFilesManager.loadSDCards();
-    }, 2000);
-    
+
+    // Scan creates a background job. We don't know exactly when it finishes,
+    // so invalidate both cards and files — TanStack will refetch after staleTime.
+    // For a tighter integration: track the scan job_id and invalidate on completion.
+    queryClient.invalidateQueries({ queryKey: SD_CARDS_QUERY_KEY });
+    queryClient.invalidateQueries({ queryKey: ['sd-files'] });
+
   } catch (e) {
     toast.add({
       severity: 'error',
@@ -235,27 +148,73 @@ async function handleScanSDCards() {
   }
 }
 
-async function handleRepoLoad() {
-  await clipsManager.load();
+async function handleVolumeChange(volumeUid: string) {
+  sdFilesManager.switchToCard(volumeUid);
 }
 
-watch(mode, async () => {
-  selectedMedia.value = null;
-  clipsManager.query.value = "";
-  sdFilesManager.query.value = "";
-  clipsManager.clearSelection();
-  sdFilesManager.clearSelection();
-  
-  if (mode.value === 'repo') {
-    await clipsManager.load();
-  } else if (mode.value === 'import') {
-    await sdFilesManager.loadSDCards();
-  }
-}, { immediate: true });
+// Clip Actions
 
-onMounted(async () => {
-  await clipsManager.load();
-});
+async function handleDelete() {
+  if (clipsManager.selectedClips.value.length === 0) return;
+
+  const count  = clipsManager.selectedClips.value.length;
+  const plural = count > 1 ? 's' : '';
+
+  confirm.require({
+    message: `Are you sure you want to delete ${count} clip${plural}?`,
+    header: 'Confirm Delete',
+    icon: 'pi pi-exclamation-triangle',
+    rejectClass: 'p-button-secondary p-button-outlined',
+    acceptClass: 'p-button-danger',
+    accept: async () => {
+      try {
+        const result = await clipsManager.deleteSelected();
+        // deleteSelected() already calls invalidateQueries internally
+        toast.add({
+          severity: 'success',
+          summary: 'Deleted',
+          detail: result.message,
+          life: 3000,
+        });
+      } catch (e) {
+        toast.add({
+          severity: 'error',
+          summary: 'Delete Failed',
+          detail: e instanceof Error ? e.message : 'Unknown error',
+          life: 5000,
+        });
+      }
+    },
+  });
+}
+
+async function handleExport() {
+  if (clipsManager.selectedClips.value.length === 0) return;
+
+  try {
+    const destination = await open({ directory: true });
+    if (!destination) return;
+
+    const result = await exportClips({
+      clip_ids: clipsManager.selectedClips.value.map(c => c.id),
+      destination_dir: destination as string,
+    });
+
+    toast.add({
+      severity: result.failed_count > 0 ? 'warn' : 'success',
+      summary: 'Export Complete',
+      detail: result.message,
+      life: 3000,
+    });
+  } catch (e) {
+    toast.add({
+      severity: 'error',
+      summary: 'Export Failed',
+      detail: e instanceof Error ? e.message : 'Unknown error',
+      life: 5000,
+    });
+  }
+}
 </script>
 
 <template>
@@ -339,15 +298,18 @@ onMounted(async () => {
 
             <RepoView
               v-if="mode === 'repo'"
+              :clips="clipsManager.filteredClips.value"
+              :loading="clipsManager.loading.value"
+              :error="clipsManager.error.value"
+              :query="clipsManager.query.value"
+              :filters="clipsManager.filters"
               @select="onSelectClip"
               @selection-change="clipsManager.setSelection"
               @delete-selected="handleDelete"
               @export="handleExport"
               @delete="handleDelete"
               @go-to-import="handleGoToImport"
-              @load="handleRepoLoad"
-              :filters="clipsManager.filters"
-              :query="clipsManager.query.value"
+              @load="clipsManager.reload"
             />
 
             <ImportView
@@ -367,7 +329,7 @@ onMounted(async () => {
               @volume-change="handleVolumeChange"
               @scan-cards="handleScanSDCards"
               @import="handleImport"
-              @load="sdFilesManager.loadSDCards"
+              @load="sdFilesManager.reloadAll"
               ref="importViewRef"
             />
 

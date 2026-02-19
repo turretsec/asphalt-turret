@@ -1,6 +1,6 @@
 import { createApp } from "vue";
 import App from "./App.vue";
-import { VueQueryPlugin } from '@tanstack/vue-query'
+import { VueQueryPlugin, QueryClient } from '@tanstack/vue-query'
 
 import PrimeVue from "primevue/config";
 import Aura from "@primeuix/themes/aura";
@@ -13,6 +13,18 @@ import { definePreset } from "@primeuix/themes";
 
 import Tooltip from 'primevue/tooltip';
 import { TooltipStyle } from "primevue";
+
+// TanStack Query
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,       // 30 seconds default
+      retry: 1,                // retry failed requests once
+      refetchOnWindowFocus: false,  // desktop app — no tab-switching behaviour needed
+    },
+  },
+})
 
 const app = createApp(App);
 
@@ -69,6 +81,6 @@ app.use(PrimeVue, {
 });
 app.use(ToastService);
 app.use(ConfirmationService);
-app.use(VueQueryPlugin)
+app.use(VueQueryPlugin, { queryClient });
 app.directive('tooltip', Tooltip);
 app.mount("#app");
