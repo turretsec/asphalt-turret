@@ -29,7 +29,7 @@ const datePresets: { label: string; value: DatePreset }[] = [
 </script>
 
 <template>
-  <div class="flex flex-col items-center w-full bg-surface-900 p-2 gap-2 rounded-sm">
+  <div class="flex flex-col items-center w-full bg-surface-900 p-2 gap-2 border-t border-surface-700">
     <!-- Search (shared) -->
     <InputText
       v-model="query"

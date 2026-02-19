@@ -263,14 +263,16 @@ onMounted(async () => {
   <ConfirmDialog />
   
   <div class="flex flex-row w-full h-screen bg-surface-950">
-    <aside class="w-56 pt-2 pl-2 pb-2 flex flex-col">
-
-      <Nav @select="onSelectMode" />
+    <div class="w-56 flex flex-col border-r border-surface-700">
+    <aside class="flex flex-col h-full">
+      <div class="p-2">
+        <Nav @select="onSelectMode" />
+      </div>
       
       <!-- Import sidebar (NO MORE IMPORT BUTTON) -->
       <FileToolbar
         v-if="mode === 'import'"
-        class="flex-1 mt-4"
+        class="flex-1"
         v-model:query="sdFilesManager.query.value"
         v-model:modes="sdFilesManager.filters.modes"
         v-model:datePreset="sdFilesManager.filters.datePreset"
@@ -298,7 +300,7 @@ onMounted(async () => {
       <!-- Repo sidebar (NO MORE DELETE/EXPORT BUTTONS) -->
       <FileToolbar
         v-else-if="mode === 'repo'"
-        class="flex-1 mt-4"
+        class="flex-1"
         v-model:query="clipsManager.query.value"
         v-model:modes="clipsManager.filters.modes"
         v-model:datePreset="clipsManager.filters.datePreset"
@@ -323,13 +325,14 @@ onMounted(async () => {
         <!-- Remove the actions slot - action bar handles it now -->
       </FileToolbar>
     </aside>
+  </div>
 
-    <Splitter class="flex-1 h-full rounded-sm overflow-hidden bg-surface-950 p-2 border-none"
+    <Splitter class="flex-1 h-full overflow-hidden bg-surface-950 border-none"
     >
-      <SplitterPanel class="flex items-center justify-center rounded-sm">
+      <SplitterPanel class="flex items-center justify-center">
         <Splitter orientation="vertical" style="height: 100%;"
           :pt="{
-            gutter: { class: 'bg-surface-800', width: '1px' }
+            gutter: { class: 'w-1 bg-surface-700' }
           }"
         >
           <SplitterPanel class="flex flex-col items-center justify-center p-2 bg-surface-900">
@@ -378,3 +381,10 @@ onMounted(async () => {
     </Splitter>
   </div>
 </template>
+
+<style scoped>
+/* Target the gutter directly */
+:deep(.p-splitter-gutter) {
+  width: 0.5px !important;
+}
+</style>
