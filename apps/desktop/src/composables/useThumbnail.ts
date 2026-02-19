@@ -139,7 +139,13 @@ export function useThumbnail(srcRef: Ref<string | null | undefined>) {
       failed.value  = true
       loading.value = false
 
-    } catch {
+    } catch (error) {
+      // Expected during unmount/src-change cancellation.
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        loading.value = false
+        return
+      }
+
       // Network / fetch error — worth a few retries
       if (!aborted && currentRequestId === requestId && attempt < MAX_RETRIES) {
         retryTimer = setTimeout(() => {
