@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 from pydantic import BaseModel
 from typing import Optional
+import logging
 
 from asphalt_turret_api.schemas.job import JobStatusResponse
 from asphalt_turret_engine.db.session import get_db
@@ -11,8 +12,9 @@ from asphalt_turret_engine.db.crud import sd_file as sd_file_crud
 from asphalt_turret_engine.db.crud import job as job_crud
 from asphalt_turret_engine.db.enums import SDFileImportStateEnum
 
-router = APIRouter(prefix="/imports", tags=["imports"])
+logger = logging.getLogger(__name__)
 
+router = APIRouter(prefix="/imports", tags=["imports"])
 
 class ImportRequest(BaseModel):
     """Request to import files from an SD card."""
@@ -30,87 +32,63 @@ class ImportResponse(BaseModel):
 @router.post("/sd-card", response_model=ImportResponse)
 def import_sd_card(
     request: ImportRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Create a batch import job for files on an SD card.
-    
-    If file_ids is provided, imports those specific files.
-    Otherwise imports pending files (optionally limited by limit parameter).
+
+    If file_ids is provided, imports those specific files (skipping already-imported ones).
+    Otherwise imports all pending files, optionally capped by `limit`.
     """
-    # 1. Find SD card
     card = sd_card_crud.get_by_volume_uid(db, request.volume_uid)
-    
     if not card:
         raise HTTPException(
             status_code=404,
-            detail=f"SD card with volume_uid '{request.volume_uid}' not found"
+            detail=f"SD card '{request.volume_uid}' not found",
         )
-    
-    # 2. Get files to import
+
     if request.file_ids:
-        # Import specific files by ID
-        files_to_import = sd_file_crud.get_by_ids(db, request.file_ids, card.id)
-        
-        # Validate all files belong to this SD card
-        if len(files_to_import) != len(request.file_ids):
+        # Fetch the requested files, validating they belong to this card
+        files = sd_file_crud.get_by_ids(db, request.file_ids, card.id)
+
+        if len(files) != len(request.file_ids):
             raise HTTPException(
                 status_code=400,
-                detail="Some file IDs not found or don't belong to this SD card"
+                detail="Some file IDs were not found or don't belong to this SD card",
             )
-    else:
-        # Import pending files (old behavior)
-        files_to_import = sd_file_crud.list_files(
-            db, 
-            card.id, 
-            import_state=SDFileImportStateEnum.pending
-        )
 
-    if request.file_ids:
-        files_to_import = sd_file_crud.get_by_ids(db, request.file_ids, card.id)
-        
-        # Filter out already-imported files
-        importable_files = [
-            f for f in files_to_import 
-            if f.import_state != SDFileImportStateEnum.imported
-        ]
-        
-        if len(importable_files) < len(files_to_import):
-            skipped = len(files_to_import) - len(importable_files)
-            print(f"Skipped {skipped} already-imported files")
+        # Skip files that are already imported
+        files_to_import = [f for f in files if f.import_state != SDFileImportStateEnum.imported]
 
-        files_to_import = importable_files
+        skipped = len(files) - len(files_to_import)
+        if skipped:
+            logger.info(f"Skipping {skipped} already-imported file(s)")
     else:
-        # Old behavior - only pending files
+        # Import all new/pending files, with optional limit
         files_to_import = sd_file_crud.list_files(
-            db, card.id, import_state=SDFileImportStateEnum.pending
+            db,
+            card.id,
+            import_state=SDFileImportStateEnum.new,
         )
-        
         if request.limit is not None:
-            files_to_import = files_to_import[:request.limit]
-    
-    if not files_to_import:
-        return ImportResponse(
-            job_id=0,
-            total_files=0,
-            message="No files to import"
-        )
-    
-    # 3. Create batch import job
-    file_ids = [f.id for f in files_to_import]
-    job = job_crud.create_import_batch_job(
-        db,
-        sd_card_id=card.id,
-        file_ids=file_ids,
-    )
+            files_to_import = files_to_import[: request.limit]
 
+    if not files_to_import:
+        return ImportResponse(job_id=0, total_files=0, message="No files to import")
+
+    file_ids = [f.id for f in files_to_import]
+    job = job_crud.create_import_batch_job(db, sd_card_id=card.id, file_ids=file_ids)
     db.commit()
-    
+
+    logger.info(f"Created import job {job.id} for {len(file_ids)} file(s) from card {card.volume_uid}")
+
     return ImportResponse(
         job_id=job.id,
         total_files=len(file_ids),
-        message=f"Import job created for {len(file_ids)} files"
+        message=f"Import job created for {len(file_ids)} files",
     )
+
+
 
 
 @router.get("/jobs/{job_id}", response_model=JobStatusResponse)
@@ -139,8 +117,8 @@ def get_job_status(job_id: int, db: Session = Depends(get_db)):
             total = metadata.get("total")
             completed = len(metadata.get("completed", []))
             failed = len(metadata.get("failed", []))
-        except:
-            pass
+        except Exception as e:
+            logger.error(f"Error parsing job metadata for job {job_id}: {e}")
     
     return JobStatusResponse(
         job_id=job.id,

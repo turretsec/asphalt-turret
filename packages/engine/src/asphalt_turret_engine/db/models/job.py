@@ -13,6 +13,9 @@ if TYPE_CHECKING:
     from asphalt_turret_engine.db.models.sd_file import SDFile
     from asphalt_turret_engine.db.models.clip import Clip
 
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
+
 class Job(Base):
     __tablename__ = "job"
 
@@ -55,5 +58,6 @@ class Job(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=_now,       # Python-side: evaluated by SQLAlchemy on INSERT
+        onupdate=_now,      # Python-side: evaluated by SQLAlchemy on UPDATE
     )

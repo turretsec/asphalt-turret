@@ -183,7 +183,7 @@ export interface SettingsResponse {
 }
 
 export enum JobState {
-  PENDING = 'pending',
+  QUEUED = 'queued',
   RUNNING = 'running',
   COMPLETED = 'completed',
   FAILED = 'failed',

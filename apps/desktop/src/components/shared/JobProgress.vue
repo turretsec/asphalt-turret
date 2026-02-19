@@ -200,7 +200,7 @@ watch(job, (newJob) => {
       
       <!-- State indicator -->
       <div class="text-xs text-surface-400 mt-1">
-        {{ job.state === JobState.PENDING ? 'Pending...' : 'Running...' }}
+        {{ job.state === JobState.QUEUED ? 'Queued...' : 'Running...' }}
       </div>
     </div>
   </div>

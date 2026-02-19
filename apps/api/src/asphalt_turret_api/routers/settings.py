@@ -1,6 +1,4 @@
-from re import U
 from fastapi import APIRouter, Depends
-from fastapi.background import P
 from pathlib import Path
 
 from asphalt_turret_engine.config.user_settings import UserSettingsPatch
@@ -13,13 +11,12 @@ def get_settings_service() -> SettingsService:
     return SettingsService(BootstrapSettings())
 
 def _jsonify(v):
+    """Convert Path objects to strings for JSON serialization."""
     return str(v) if isinstance(v, Path) else v
 
 @router.get("")
 def get_settings(service: SettingsService = Depends(get_settings_service)):
-    """
-    Get effective settings (merged defaults + user overrides).
-    """
+    """Get effective settings (merged defaults + user overrides)."""
     eff = service.effective()
     return {
         "user": service.user.model_dump(),
@@ -32,9 +29,7 @@ def patch_settings(
     patch: UserSettingsPatch,
     service: SettingsService = Depends(get_settings_service),
 ):
-    """
-    Patch user settings.
-    """
+    """Patch user settings."""
     result = service.update(patch)
     return {
         "changed_keys": result.changed_keys,
