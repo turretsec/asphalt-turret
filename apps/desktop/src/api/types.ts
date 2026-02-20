@@ -90,6 +90,7 @@ export enum ModeEnum {
   PARKING = "parking",
   MANUAL = "manual",
   SOS = "sos",
+  MOTION = "motion",
   UNKNOWN = "unknown"
 }
 

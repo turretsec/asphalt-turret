@@ -10,13 +10,13 @@ def parse_camera_from_path(rel_path: str) -> CameraEnum:
     """
     Guess camera from filename or path.
     
-    Thinkware format: FRONT_YYYYMMDD_HHMMSS.mp4 or REAR_YYYYMMDD_HHMMSS.mp4
+    Thinkware format: *_F.mp4 or *_R.mp4
     """
     path_upper = rel_path.upper()
     
-    if "FRONT" in path_upper or "_F_" in path_upper:
+    if "FRONT" in path_upper or "_F" in path_upper:
         return CameraEnum.front
-    elif "REAR" in path_upper or "_R_" in path_upper:
+    elif "REAR" in path_upper or "_R" in path_upper:
         return CameraEnum.rear
     else:
         return CameraEnum.unknown
@@ -40,6 +40,8 @@ def parse_mode_from_path(rel_path: str) -> ModeEnum:
         return ModeEnum.manual
     elif "sos_rec" in path_lower:
         return ModeEnum.sos
+    elif "motion_timelapse" in path_lower:
+        return ModeEnum.motion
     else:
         return ModeEnum.unknown
 

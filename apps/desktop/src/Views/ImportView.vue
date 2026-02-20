@@ -61,8 +61,7 @@ const connectedCards = computed(() => props.availableCards.filter(c => c.is_conn
         @change="emit('volume-change', $event)"
       />
       <Button
-        label="Scan SD Cards"
-        icon="pi pi-refresh"
+        icon="pi pi-play"
         severity="secondary"
         size="small"
         @click="emit('scan-cards')"

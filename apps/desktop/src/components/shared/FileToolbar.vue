@@ -16,6 +16,7 @@ const modeOptions: { label: string; value: ModeEnum }[] = [
   { label: "Continuous", value: ModeEnum.CONTINUOUS },
   { label: "Event", value: ModeEnum.EVENT },
   { label: "Parking", value: ModeEnum.PARKING },
+  { label: "Motion", value: ModeEnum.MOTION },
   { label: "Unknown", value: ModeEnum.UNKNOWN },
 ];
 
@@ -42,6 +43,7 @@ const datePresets: { label: string; value: DatePreset }[] = [
     <MultiSelect
       v-model="modes"
       :options="modeOptions"
+      :showToggleAll="false"
       optionLabel="label"
       optionValue="value"
       placeholder="Modes"

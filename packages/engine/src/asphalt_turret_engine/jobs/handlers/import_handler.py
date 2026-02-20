@@ -219,5 +219,5 @@ def _import_single_file(
     sd_file.import_state = SDFileImportStateEnum.imported
     session.flush()
 
-    logger.info(f"Imported {source_path.name} → clip {clip.id}")
+    logger.info(f"Imported {source_path.name} - clip {clip.id}")
     return clip

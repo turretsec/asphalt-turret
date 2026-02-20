@@ -243,6 +243,7 @@ async function handleExport() {
           <MultiSelect
             v-model="sdFilesManager.filters.states"
             :options="stateOptions"
+            :showToggleAll="false"
             optionLabel="label"
             optionValue="value"
             display="chip"
@@ -271,6 +272,7 @@ async function handleExport() {
           <MultiSelect
             v-model="clipsManager.filters.cameras"
             :options="cameraOptions"
+            :showToggleAll="false"
             optionLabel="label"
             optionValue="value"
             display="chip"
