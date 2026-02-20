@@ -285,3 +285,46 @@ def create_thumb_batch_job(
     )
     session.add(job)
     return job
+
+def create_thumb_sd_batch_job(
+    session: Session,
+    *,
+    volume_uid: str,
+    drive_root: str,
+    sd_file_ids: list[int],
+) -> Job:
+    """
+    Create a batch thumbnail generation job for SD card files.
+
+    Queued automatically after an sd_scan so thumbnails are pre-generated
+    before the user opens the import view. drive_root is captured at queue
+    time (when the card is confirmed mounted) so the job has everything it
+    needs even if volume enumeration is slow when it eventually runs.
+
+    Args:
+        session:     Database session
+        volume_uid:  Volume UID of the SD card
+        drive_root:  Mount path of the card at scan time (e.g. "D:\\")
+        sd_file_ids: List of SDFile IDs to generate thumbnails for
+
+    Returns:
+        Created Job instance (caller must commit)
+    """
+    metadata = {
+        "volume_uid":  volume_uid,
+        "drive_root":  drive_root,
+        "sd_file_ids": sd_file_ids,
+        "completed":   [],
+        "failed":      [],
+        "total":       len(sd_file_ids),
+    }
+
+    job = Job(
+        type=JobTypeEnum.thumb_sd_batch,
+        state=JobStateEnum.queued,
+        metadata_json=json.dumps(metadata),
+        progress=0,
+        message=f"Queued: SD thumbnails for {len(sd_file_ids)} files ({volume_uid})",
+    )
+    session.add(job)
+    return job

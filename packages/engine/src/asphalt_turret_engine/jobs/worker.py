@@ -11,6 +11,7 @@ from asphalt_turret_engine.jobs.handlers.import_handler import handle_import_bat
 from asphalt_turret_engine.jobs.handlers.probe_handler import handle_probe_batch, handle_probe_clip
 from asphalt_turret_engine.jobs.handlers.sd_scan_handler import handle_sd_scan
 from asphalt_turret_engine.jobs.handlers.thumb_handler import handle_thumb_batch
+from asphalt_turret_engine.jobs.handlers.thumb_sd_handler import handle_thumb_sd_batch
 
 
 # Logger for worker
@@ -62,6 +63,8 @@ def worker_loop() -> None:
                         handle_probe_clip(session, job)
                     elif job.type == JobTypeEnum.thumb_batch:
                         handle_thumb_batch(session, job)
+                    elif job.type == JobTypeEnum.thumb_sd_batch:
+                        handle_thumb_sd_batch(session, job)
                     elif job.type == JobTypeEnum.sd_scan:
                         handle_sd_scan(session, job)
                     else:

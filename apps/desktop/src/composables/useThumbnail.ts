@@ -1,32 +1,37 @@
 /**
  * useThumbnail
  *
- * Wraps a thumbnail URL with two behaviours:
+ * Loads thumbnail images using `new Image()` instead of `fetch()`.
  *
- * 1. Concurrency semaphore — at most MAX_CONCURRENT requests fire at once.
- * 2. Retry on HTTP 202 — the clip thumbnail endpoint returns 202 while
- *    generation is in progress. We retry with exponential backoff.
+ * WHY NOT fetch():
+ * fetch() is a CORS request. <img> and new Image() are not — the browser
+ * loads them as "no-cors" requests and doesn't enforce the CORS policy.
+ * Since our thumbnail endpoints return image files (not JSON), there's no
+ * reason to use fetch(). Switching to Image() makes CORS completely irrelevant.
  *
- * HTTP semantics:
- *   200 → ready, display it
- *   202 → not ready yet, retry after delay
- *   404 → genuinely missing, fail fast
- *   5xx → server error, fail fast
+ * RETRY LOGIC:
+ * Both "not ready yet" (202) and genuine errors look like onerror() when
+ * loading via Image(). We can't distinguish them, so we retry up to
+ * MAX_RETRIES times with exponential backoff. BackgroundTasks generates
+ * thumbnails in < 1s, so the second retry (1.5s later) almost always wins.
+ * After MAX_RETRIES, show the placeholder icon.
  *
- * WHY retry() EXISTS:
- * VirtualScroller reuses Vue component instances when scrolling. If a
- * component previously exhausted MAX_RETRIES (failed = true), its srcRef
- * doesn't change when the scroller hands it back for the same item —
- * so the watch never fires again, and failed stays true forever.
- * retry() lets ThumbnailImage's click handler break out of that state.
+ * CONCURRENCY:
+ * Module-level semaphore caps simultaneous in-flight image probes to
+ * MAX_CONCURRENT so we don't hammer the server when the list first renders.
+ *
+ * VirtualScroller instance reuse:
+ * retry() lets ThumbnailImage reset a failed state when the user clicks
+ * the placeholder icon — handles the case where srcRef didn't change
+ * (same item recycled in the same scroller slot) so the watch didn't fire.
  */
 
 import { ref, watch, onUnmounted } from 'vue'
 import type { Ref } from 'vue'
 
-// ─── Semaphore (module-level singleton) ───────────────────────────────────────
+// ─── Semaphore ────────────────────────────────────────────────────────────────
 
-const MAX_CONCURRENT = 4
+const MAX_CONCURRENT = 6   // slightly higher since Image() is lower-overhead than fetch()
 let _active = 0
 const _queue: Array<() => void> = []
 
@@ -48,18 +53,45 @@ function releaseSemaphore() {
 }
 
 // ─── Ready cache ──────────────────────────────────────────────────────────────
-// URLs that have returned 200 — skip the fetch on remount.
+// If a URL successfully loaded once, skip the probe on remount.
+// (VirtualScroller remounts items as you scroll back up.)
 
-const readyThumbnails = new Set<string>()
+const readyUrls = new Set<string>()
 
 // ─── Retry config ─────────────────────────────────────────────────────────────
 
-const MAX_RETRIES   = 8
-const BASE_DELAY_MS = 1_500
-const MAX_DELAY_MS  = 30_000
+const MAX_RETRIES   = 6
+const BASE_DELAY_MS = 1_200
+const MAX_DELAY_MS  = 15_000
 
 function retryDelay(attempt: number): number {
   return Math.min(BASE_DELAY_MS * 2 ** attempt, MAX_DELAY_MS)
+}
+
+// ─── Image probe ──────────────────────────────────────────────────────────────
+
+function probeImage(src: string, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) { reject(new DOMException('Aborted', 'AbortError')); return }
+
+    const img = new Image()
+
+    const cleanup = () => {
+      img.onload  = null
+      img.onerror = null
+    }
+
+    signal.addEventListener('abort', () => {
+      cleanup()
+      img.src = ''
+      reject(new DOMException('Aborted', 'AbortError'))
+    }, { once: true })
+
+    img.onload  = () => { cleanup(); resolve() }
+    img.onerror = () => { cleanup(); reject(new Error('Image load failed')) }
+
+    img.src = src
+  })
 }
 
 // ─── Composable ───────────────────────────────────────────────────────────────
@@ -76,21 +108,19 @@ export function useThumbnail(srcRef: Ref<string | null | undefined>) {
 
   function cancelPending() {
     aborted = true
-    requestId += 1
+    requestId++
     controller?.abort()
     controller = null
-    if (retryTimer !== null) {
-      clearTimeout(retryTimer)
-      retryTimer = null
-    }
+    if (retryTimer !== null) { clearTimeout(retryTimer); retryTimer = null }
   }
 
-  async function load(src: string, attempt = 0, currentRequestId = requestId) {
-    if (aborted || currentRequestId !== requestId) return
+  async function load(src: string, attempt = 0, rid = requestId) {
+    if (aborted || rid !== requestId) return
 
-    if (readyThumbnails.has(src)) {
+    // Already known good — set directly, no probe needed
+    if (readyUrls.has(src)) {
       thumbnailSrc.value = src
-      loading.value = false
+      loading.value      = false
       return
     }
 
@@ -98,56 +128,37 @@ export function useThumbnail(srcRef: Ref<string | null | undefined>) {
 
     await acquireSemaphore()
 
-    if (aborted || currentRequestId !== requestId) {
+    if (aborted || rid !== requestId) {
       releaseSemaphore()
       return
     }
 
     try {
       controller = new AbortController()
-      const response = await fetch(src, { method: 'GET', signal: controller.signal })
+      await probeImage(src, controller.signal)
       controller = null
 
-      if (aborted || currentRequestId !== requestId) return
+      if (aborted || rid !== requestId) return
 
-      // ── 202: not ready yet, retry with backoff ────────────────────────────
-      // MUST come before response.ok — 202 is 2xx so response.ok is true.
-      if (response.status === 202) {
-        if (attempt >= MAX_RETRIES) {
-          failed.value  = true
-          loading.value = false
-          return
-        }
-        retryTimer = setTimeout(() => {
-          retryTimer = null
-          load(src, attempt + 1, currentRequestId)
-        }, retryDelay(attempt))
-        return
-      }
+      // Image loaded successfully
+      readyUrls.add(src)
+      thumbnailSrc.value = src
+      loading.value      = false
 
-      // ── 200: image ready ──────────────────────────────────────────────────
-      if (response.ok) {
-        readyThumbnails.add(src)
-        if (!aborted && currentRequestId === requestId) {
-          thumbnailSrc.value = src
-          loading.value      = false
-        }
-        return
-      }
+    } catch (err) {
+      controller = null
 
-      // ── 404 / 5xx: give up immediately ───────────────────────────────────
-      failed.value  = true
-      loading.value = false
-
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') {
+      if (err instanceof DOMException && err.name === 'AbortError') {
         loading.value = false
         return
       }
-      if (!aborted && currentRequestId === requestId && attempt < MAX_RETRIES) {
+
+      // Load failed — could be 202 (not ready yet) or real 404.
+      // Retry either way; BackgroundTasks will have the file ready soon.
+      if (!aborted && rid === requestId && attempt < MAX_RETRIES) {
         retryTimer = setTimeout(() => {
           retryTimer = null
-          load(src, attempt + 1, currentRequestId)
+          load(src, attempt + 1, rid)
         }, retryDelay(attempt))
       } else {
         failed.value  = true
@@ -158,12 +169,11 @@ export function useThumbnail(srcRef: Ref<string | null | undefined>) {
     }
   }
 
-  // Re-run whenever src changes (different item rendered in same scroller slot)
   watch(
     srcRef,
     (newSrc) => {
       cancelPending()
-      aborted = false
+      aborted            = false
       thumbnailSrc.value = null
       failed.value       = false
 
@@ -176,18 +186,13 @@ export function useThumbnail(srcRef: Ref<string | null | undefined>) {
     { immediate: true }
   )
 
-  onUnmounted(() => {
-    cancelPending()
-  })
+  onUnmounted(() => { cancelPending() })
 
-  // Exposed so ThumbnailImage can call this when the user clicks the camera
-  // icon — handles the VirtualScroller instance-reuse case where srcRef
-  // didn't change so the watch never fired again after a previous failure.
   function retry() {
     const src = srcRef.value
     if (!src) return
     cancelPending()
-    aborted = false
+    aborted            = false
     thumbnailSrc.value = null
     failed.value       = false
     load(src)

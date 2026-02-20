@@ -42,6 +42,12 @@ export function useSDFiles() {
     staleTime: 30_000,
   });
 
+  console.log('SD Cards query:', {
+    isLoading: sdCardsQuery.isLoading.value,
+    error: sdCardsQuery.error.value,
+    data: sdCardsQuery.data.value,
+  });
+
   // When sd-cards data arrives (or updates), auto-select a card if none selected.
   // This replaces the `loadSDCards()` logic that handled initial card selection.
   const sdCards = computed(() => sdCardsQuery.data.value ?? []);

@@ -7,12 +7,12 @@ class UserSettings(BaseModel):
     version: int = 1
 
     # Media / thumbnails (instant-ish)
-    thumbnail_width: int = Field(default=320, ge=64, le=1920, json_schema_extra={
+    thumbnail_width: int = Field(default=160, ge=64, le=1920, json_schema_extra={
         "label": "Thumbnail width",
         "requires_restart": False,
         "category": "Media",
     })
-    thumbnail_height: int = Field(default=180, ge=64, le=1080, json_schema_extra={
+    thumbnail_height: int = Field(default=90, ge=64, le=1080, json_schema_extra={
         "label": "Thumbnail height",
         "requires_restart": False,
         "category": "Media",

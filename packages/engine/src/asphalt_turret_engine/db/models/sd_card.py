@@ -16,27 +16,25 @@ class SDCard(Base):
     __tablename__ = "sd_card"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
     volume_uid: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     volume_label: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
-    first_seen_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        nullable=False,
-        server_default=func.now()
+    # UUID written to .at_card_id on the physical card.
+    card_identity: Mapped[Optional[str]] = mapped_column(
+        String(64), nullable=True, unique=True, index=True
     )
-    
+
+    first_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
     last_seen_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        nullable=False,
-        server_default=func.now()
+        DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
     files: Mapped[list["SDFile"]] = relationship(
-        back_populates="sd_card",
-        cascade="all, delete-orphan",
+        back_populates="sd_card", cascade="all, delete-orphan"
     )
-
     sources: Mapped[list["ClipSource"]] = relationship(
-        back_populates="sd_card",
-        cascade="all, delete-orphan",
+        back_populates="sd_card", cascade="all, delete-orphan"
     )
