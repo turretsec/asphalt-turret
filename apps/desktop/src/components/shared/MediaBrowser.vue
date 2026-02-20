@@ -17,6 +17,7 @@ const props = defineProps<{
   items: T[];
   loading: boolean;
   error: string | null;
+  selectedItems?: T[];
   selectedId: number | null;
   title: string;
   viewMode?: 'compact' | 'expanded' | 'table';
@@ -27,6 +28,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: "select", item: T): void;
+  (e: "update:selectedItems", items: T[]): void;
   (e: "selection-change", items: T[]): void;
   (e: "load"): void;
   (e: "toggle-view"): void;
@@ -39,13 +41,19 @@ const emit = defineEmits<{
 
 // Selection state
 
-const selectedItems = shallowRef<T[]>([]);
+const internalSelectedItems = shallowRef<T[]>([]);
+const selectedItems = computed<T[]>({
+  get: () => props.selectedItems ?? internalSelectedItems.value,
+  set: (items) => {
+    if (props.selectedItems === undefined) {
+      internalSelectedItems.value = items;
+    }
+    emit('update:selectedItems', items);
+    emit('selection-change', items);
+  },
+});
 const focusedIndex = ref<number>(-1);
 const lastClickedIndex = ref<number>(-1);
-
-watch(selectedItems, (newSelection) => {
-  emit("selection-change", newSelection as T[]);
-}, { deep: true });
 
 watch(focusedIndex, (newIndex) => {
   if (newIndex >= 0 && newIndex < props.items.length) {

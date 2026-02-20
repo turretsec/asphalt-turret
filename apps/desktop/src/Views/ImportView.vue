@@ -15,6 +15,7 @@ const props = defineProps<{
   currentVolumeUid: string;
   availableCards: SDCard[];
   query: string;
+  selectedFiles: SDFile[];
 
   // Job tracking
   currentImportJobId?: number | null;
@@ -22,6 +23,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'select', payload: { file: SDFile; volumeUid: string }): void;
+  (e: 'update:selectedFiles', files: SDFile[]): void;
   (e: 'selection-change', files: SDFile[]): void;
   (e: 'import'): void;
   (e: 'import-complete'): void;
@@ -91,7 +93,9 @@ const connectedCards = computed(() => props.availableCards.filter(c => c.is_conn
         :selectedId="selectedId"
         :currentVolumeUid="currentVolumeUid"
         :query="query"
+        :selectedItems="selectedFiles"
         @select="emit('select', $event)"
+        @update:selectedItems="emit('update:selectedFiles', $event)"
         @selection-change="emit('selection-change', $event)"
         @load="emit('load')"
         @import="emit('import')"
