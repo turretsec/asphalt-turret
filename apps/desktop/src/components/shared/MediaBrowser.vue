@@ -80,7 +80,13 @@ function onImportClick() {
   focusedIndex.value = -1;
 }
 
-function onCheckboxClick(item: T, index: number, event: MouseEvent) {
+function isFiniteIndex(index: unknown): index is number {
+  return typeof index === 'number' && Number.isFinite(index);
+}
+
+function onCheckboxClick(index: unknown, event: MouseEvent) {
+  if (!isFiniteIndex(index)) return;
+
   if (event.shiftKey && lastClickedIndex.value !== -1) {
     event.preventDefault();
 
@@ -108,7 +114,9 @@ function onCheckboxClick(item: T, index: number, event: MouseEvent) {
   }
 }
 
-function onItemClick(item: T, event: MouseEvent, index: number) {
+function onItemClick(item: T, event: MouseEvent, index: unknown) {
+  if (!isFiniteIndex(index)) return;
+
   if ((event.target as HTMLElement).closest('.item-checkbox')) return;
 
   if (event.shiftKey && lastClickedIndex.value !== -1) {
@@ -343,14 +351,14 @@ defineExpose({
           dark:[&::-webkit-scrollbar-track]:bg-neutral-700
           dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500"
       >
-        <template #item="{ item, index }">
+        <template #item="{ item, options }">
           <li
             :class="[
               itemClass,
               'border-b border-surface-800 hover:bg-surface-800 cursor-pointer transition-colors flex items-center gap-3 w-full list-none',
               { 'bg-surface-700 focus-ring': isFocusedItem(item) }
             ]"
-            @click="onItemClick(item, $event, index)"
+            @click="onItemClick(item, $event, options.index)"
           >
             <!-- Checkbox -->
             <div class="item-checkbox flex-shrink-0" @click.stop>
@@ -358,7 +366,7 @@ defineExpose({
                 v-model="selectedItems"
                 :value="item"
                 :inputId="`item-checkbox-${item.id}`"
-                @click="onCheckboxClick(item, index, $event)"
+                @click="onCheckboxClick(options.index, $event)"
               />
             </div>
 
