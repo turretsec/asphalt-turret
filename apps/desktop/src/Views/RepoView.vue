@@ -4,11 +4,12 @@ import type { Clip, CameraEnum, ModeEnum, DatePreset } from '../api/types';
 
 // All data comes from Shell via props — no fetching here.
 // Shell owns useClips, passes filteredClips down.
-const props = defineProps<{
+defineProps<{
   clips: Clip[];
   loading: boolean;
   error: string | null;
   query: string;
+  selectedClips: Clip[];
   filters: {
     modes:      ModeEnum[];
     cameras:    CameraEnum[];
@@ -19,6 +20,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'select', clip: Clip): void;
+  (e: 'update:selectedClips', clips: Clip[]): void;
   (e: 'selection-change', clips: Clip[]): void;
   (e: 'delete-selected'): void;
   (e: 'export'): void;
@@ -35,7 +37,9 @@ const emit = defineEmits<{
     :error="error"
     :selectedId="null"
     :query="query"
+    :selectedItems="selectedClips"
     @select="emit('select', $event)"
+    @update:selectedItems="emit('update:selectedClips', $event)"
     @selection-change="emit('selection-change', $event)"
     @load="emit('load')"
     @delete-selected="emit('delete-selected')"

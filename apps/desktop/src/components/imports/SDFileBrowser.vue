@@ -13,6 +13,7 @@ const props = defineProps<{
   files: SDFile[];
   loading: boolean;
   error: string | null;
+  selectedItems?: SDFile[];
   selectedId: number | null;
   currentVolumeUid: string;
   query: string;
@@ -20,6 +21,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'select', payload: { file: SDFile; volumeUid: string }): void;
+  (e: 'update:selectedItems', files: SDFile[]): void;
   (e: 'selection-change', files: SDFile[]): void;
   (e: 'load'): void;
   (e: 'import'): void;
@@ -52,6 +54,7 @@ function onSelectFile(file: SDFile) {
     :items="files"
     :loading="loading"
     :error="error"
+    :selectedItems="selectedItems"
     :selectedId="selectedId"
     :viewMode="viewMode"
     :sortOptions="sortOptions"
@@ -60,6 +63,7 @@ function onSelectFile(file: SDFile) {
     :actionBarMode="'files'"
     title="Files"
     @select="onSelectFile"
+    @update:selectedItems="emit('update:selectedItems', $event)"
     @selection-change="emit('selection-change', $event)"
     @load="emit('load')"
     @toggle-view="toggleViewMode"

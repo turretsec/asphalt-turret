@@ -176,6 +176,7 @@ async function handleDelete() {
           detail: result.message,
           life: 3000,
         });
+        clipsManager.clearSelection();
       } catch (e) {
         toast.add({
           severity: 'error',
@@ -206,6 +207,7 @@ async function handleExport() {
       detail: result.message,
       life: 3000,
     });
+    clipsManager.clearSelection();
   } catch (e) {
     toast.add({
       severity: 'error',
@@ -302,9 +304,10 @@ async function handleExport() {
               :loading="clipsManager.loading.value"
               :error="clipsManager.error.value"
               :query="clipsManager.query.value"
+              :selectedClips="clipsManager.selectedClips.value"
               :filters="clipsManager.filters"
               @select="onSelectClip"
-              @selection-change="clipsManager.setSelection"
+              @update:selectedClips="clipsManager.setSelection"
               @delete-selected="handleDelete"
               @export="handleExport"
               @delete="handleDelete"
@@ -321,9 +324,10 @@ async function handleExport() {
               :currentVolumeUid="sdFilesManager.currentVolumeUid.value"
               :availableCards="sdFilesManager.availableCards.value"
               :query="sdFilesManager.query.value"
+              :selectedFiles="sdFilesManager.selectedSDFiles.value"
               :currentImportJobId="currentImportJobId"
               @select="onSelectSDFile"
-              @selection-change="sdFilesManager.setSelection"
+              @update:selectedFiles="sdFilesManager.setSelection"
               @import-complete="onImportComplete"
               @import-dismiss="onImportDismiss"
               @volume-change="handleVolumeChange"

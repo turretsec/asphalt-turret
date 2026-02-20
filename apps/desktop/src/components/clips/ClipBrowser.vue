@@ -9,11 +9,12 @@ import { formatFileSize, formatDuration } from '../../utils/format';
 import EmptyState from '../shared/EmptyState.vue';
 import ThumbnailImage from '../shared/ThumbnailImage.vue';
 
-const props = defineProps<{
+defineProps<{
   clips: Clip[];
   query: string;
   loading: boolean;
   error: string | null;
+  selectedItems?: Clip[];
   selectedId: number | null;
   filterMode?: string;
   filterDate?: string;
@@ -21,6 +22,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: "select", clip: Clip): void;
+  (e: "update:selectedItems", clips: Clip[]): void;
   (e: "selection-change", clips: Clip[]): void;
   (e: "load"): void;
   (e: "delete-selected"): void;
@@ -58,6 +60,7 @@ function onSortChange(value: string) {
     :items="clips"
     :loading="loading"
     :error="error"
+    :selectedItems="selectedItems"
     :selectedId="selectedId"
     :viewMode="viewMode"
     :sortOptions="sortOptions"
@@ -66,6 +69,7 @@ function onSortChange(value: string) {
     :actionBarMode="'clips'"
     title="Clips"
     @select="emit('select', $event)"
+    @update:selectedItems="emit('update:selectedItems', $event)"
     @selection-change="emit('selection-change', $event)"
     @load="emit('load')"
     @toggle-view="toggleViewMode"
