@@ -53,9 +53,23 @@ def register_or_touch(
         card.last_seen_at = now
         if volume_label is not None:
             card.volume_label = volume_label
+
+        # Only stamp card_identity if this record doesn't have one yet AND
+        # no other record already owns it. The second check prevents the
+        # UNIQUE constraint error that occurs when a duplicate record from a
+        # previous UID-change was already written the identity on a prior scan.
         if card_identity and not card.card_identity:
-            card.card_identity = card_identity
-            logger.info(f"Stored card identity {card_identity} on existing card {card.id}")
+            existing_owner = get_by_card_identity(session, card_identity)
+            if existing_owner is None:
+                card.card_identity = card_identity
+                logger.info(f"Stamped card identity {card_identity} onto card {card.id}")
+            else:
+                logger.warning(
+                    f"card_identity {card_identity} already owned by card {existing_owner.id} "
+                    f"— skipping assignment on card {card.id}. "
+                    f"A duplicate record may need merging."
+                )
+
         return card
 
     # Path 2: same physical card, new volume UID

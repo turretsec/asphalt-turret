@@ -6,13 +6,8 @@ import type { SDFile, SDCard, ImportFilters, DatePreset, ModeEnum, SDFileImportS
 import { parseModeFromPath, parseDateFromFilename } from '../utils/file_parser';
 import { inDateWindow } from '../utils/date';
 
-// Query keys
-// Exported so Shell can invalidate these after import/scan completes.
-
-export const SD_CARDS_QUERY_KEY  = ['sd-cards'] as const;
-export const SD_FILES_QUERY_KEY  = (volumeUid: string) => ['sd-files', volumeUid] as const;
-
-// Composable
+export const SD_CARDS_QUERY_KEY = ['sd-cards'] as const;
+export const SD_FILES_QUERY_KEY = (volumeUid: string) => ['sd-files', volumeUid] as const;
 
 export function useSDFiles() {
   const queryClient = useQueryClient();
@@ -21,6 +16,7 @@ export function useSDFiles() {
 
   const currentVolumeUid = ref<string>('');
   const selectedSDFiles  = ref<SDFile[]>([]);
+  const sortBy           = ref('date-desc');
 
   const filters = reactive<ImportFilters>({
     modes:      [] as ModeEnum[],
@@ -32,9 +28,6 @@ export function useSDFiles() {
   const query = ref('');
 
   // SD Cards list
-  //
-  // Fetches once, caches for 30s. Auto-selects the first connected card
-  // via the onSuccess side-effect below.
 
   const sdCardsQuery = useQuery({
     queryKey: SD_CARDS_QUERY_KEY,
@@ -42,16 +35,7 @@ export function useSDFiles() {
     staleTime: 30_000,
   });
 
-  console.log('SD Cards query:', {
-    isLoading: sdCardsQuery.isLoading.value,
-    error: sdCardsQuery.error.value,
-    data: sdCardsQuery.data.value,
-  });
-
-  // When sd-cards data arrives (or updates), auto-select a card if none selected.
-  // This replaces the `loadSDCards()` logic that handled initial card selection.
-  const sdCards = computed(() => sdCardsQuery.data.value ?? []);
-
+  const sdCards      = computed(() => sdCardsQuery.data.value ?? []);
   const availableCards  = computed(() => sdCards.value);
   const connectedCards  = computed(() => sdCards.value.filter(c => c.is_connected));
   const hasMultipleCards = computed(() => connectedCards.value.length > 1);
@@ -63,22 +47,14 @@ export function useSDFiles() {
       currentVolumeUid.value = '';
       return;
     }
-    // Only auto-select if nothing is selected yet, or current card disconnected
     const currentStillConnected = cards.some(c => c.volume_uid === currentVolumeUid.value);
     if (!currentVolumeUid.value || !currentStillConnected) {
       currentVolumeUid.value = cards[0].volume_uid;
     }
   });
-  // Trigger the computed to run reactively (Vue tracks it)
   void _autoSelectCard.value;
 
   // SD File List
-  //
-  // The query key includes currentVolumeUid. When the user switches cards
-  // (setting currentVolumeUid.value), TanStack automatically fires a new
-  // request for the new card — no switchToCard() logic needed.
-  //
-  // enabled: skip the fetch until we actually have a card selected.
 
   const sdFilesQuery = useQuery({
     queryKey: computed(() => SD_FILES_QUERY_KEY(currentVolumeUid.value)),
@@ -87,22 +63,22 @@ export function useSDFiles() {
     staleTime: 30_000,
   });
 
-  const sdFiles     = computed(() => sdFilesQuery.data.value ?? []);
-  const loading     = computed(() => sdCardsQuery.isLoading.value);
+  const sdFiles      = computed(() => sdFilesQuery.data.value ?? []);
+  const loading      = computed(() => sdCardsQuery.isLoading.value);
   const filesLoading = computed(() => sdFilesQuery.isLoading.value || sdFilesQuery.isFetching.value);
-  const error       = computed(() => {
+  const error        = computed(() => {
     const e = sdCardsQuery.error.value ?? sdFilesQuery.error.value;
     return e instanceof Error ? e.message : e ? String(e) : null;
   });
 
-  // Files filtered
+  // Files filtered + sorted
 
   const filteredSDFiles = computed(() => {
     const q      = query.value.trim().toLowerCase();
     const modes  = filters.modes;
     const states = filters.states;
 
-    return sdFiles.value.filter((f) => {
+    const filtered = sdFiles.value.filter((f) => {
       if (q && !f.rel_path.toLowerCase().includes(q)) return false;
 
       if (modes.length > 0) {
@@ -117,40 +93,49 @@ export function useSDFiles() {
 
       return true;
     });
+
+    // Sort
+    return [...filtered].sort((a, b) => {
+      switch (sortBy.value) {
+        case 'date-desc': {
+          const da = parseDateFromFilename(a.rel_path)?.getTime() ?? 0;
+          const db = parseDateFromFilename(b.rel_path)?.getTime() ?? 0;
+          return db - da;
+        }
+        case 'date-asc': {
+          const da = parseDateFromFilename(a.rel_path)?.getTime() ?? 0;
+          const db = parseDateFromFilename(b.rel_path)?.getTime() ?? 0;
+          return da - db;
+        }
+        case 'name-asc':  return a.rel_path.localeCompare(b.rel_path);
+        case 'name-desc': return b.rel_path.localeCompare(a.rel_path);
+        default:          return 0;
+      }
+    });
   });
 
   // Actions
 
-  // Switch to a different SD card.
-  // Just set the volumeUid — TanStack handles the fetch automatically
-  // because the query key is reactive.
   function switchToCard(volumeUid: string) {
     if (volumeUid === currentVolumeUid.value) return;
     currentVolumeUid.value = volumeUid;
     clearSelection();
   }
 
-  // Reload SD cards list (e.g. after a scan job completes).
   function reloadCards() {
     queryClient.invalidateQueries({ queryKey: SD_CARDS_QUERY_KEY });
   }
 
-  // Reload files for the current card (e.g. after import completes).
   function reloadFiles() {
     if (!currentVolumeUid.value) return;
     queryClient.invalidateQueries({ queryKey: SD_FILES_QUERY_KEY(currentVolumeUid.value) });
   }
 
-  // Reload everything (cards + current card's files).
   function reloadAll() {
     reloadCards();
     reloadFiles();
   }
 
-  // Start an import for the currently selected files.
-  // Returns the job response so Shell can start tracking it.
-  // Invalidation happens in Shell's onImportComplete when the job finishes —
-  // NOT here, because the files haven't actually changed yet at this point.
   async function importSelected() {
     if (selectedSDFiles.value.length === 0) throw new Error('No files selected');
     if (!currentVolumeUid.value)           throw new Error('No SD card selected');
@@ -173,26 +158,23 @@ export function useSDFiles() {
   }
 
   return {
-    // Server state
     sdCards,
     sdFiles,
     loading,
     filesLoading,
     error,
 
-    // Derived
     filteredSDFiles,
     availableCards,
     connectedCards,
     hasMultipleCards,
 
-    // UI state
     currentVolumeUid,
     selectedSDFiles,
     filters,
     query,
+    sortBy,
 
-    // Actions
     switchToCard,
     reloadCards,
     reloadFiles,

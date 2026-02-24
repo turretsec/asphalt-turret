@@ -35,8 +35,7 @@ def handle_thumb_sd_batch(session: Session, job: Job) -> None:
         try:
             sd_file = session.get(SDFile, file_id)
             if not sd_file:
-                logger.warning(f"SDFile {file_id} not found, skipping")
-                failed.append(file_id)
+                skipped += 1
                 continue
 
             video_path = card_path / sd_file.rel_path

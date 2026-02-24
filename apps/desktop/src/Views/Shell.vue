@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { useQueryClient } from '@tanstack/vue-query';
 import { open } from '@tauri-apps/plugin-dialog';
 
@@ -26,6 +26,7 @@ import { scanSDCards } from '../api/sd_card';
 import { useClips, CLIPS_QUERY_KEY } from '../composables/useClips';
 import { useSDFiles, SD_CARDS_QUERY_KEY, SD_FILES_QUERY_KEY } from '../composables/useSDFiles';
 import { useActiveJobs } from '../composables/useActiveJobs';
+import { useJobTracking } from '../composables/useJobTracking';
 
 // State
 
@@ -38,6 +39,8 @@ const selectedMedia      = ref<PlayableMedia | null>(null);
 const mode               = ref<'repo' | 'import' | 'settings'>('repo');
 const currentImportJobId = ref<number | null>(null);
 const importViewRef      = ref<InstanceType<typeof ImportView> | null>(null);
+const currentScanJobId = ref<number | null>(null);
+const scanJobTracking = useJobTracking(currentScanJobId.value);
 
 const toast   = useToast();
 const confirm = useConfirm();
@@ -75,6 +78,33 @@ watch(mode, () => {
   sdFilesManager.query.value = '';
   clipsManager.clearSelection();
   sdFilesManager.clearSelection();
+});
+
+watch(scanJobTracking.isComplete, (complete) => {
+  if (!complete) return;
+
+  queryClient.invalidateQueries({ queryKey: SD_CARDS_QUERY_KEY });
+  queryClient.invalidateQueries({ queryKey: ['sd-files'] });
+
+  toast.add({
+    severity: 'success',
+    summary: 'Scan Complete',
+    detail: scanJobTracking.job.value?.message ?? 'SD card scan finished.',
+    life: 4000,
+  });
+
+  currentScanJobId.value = null;
+});
+
+watch(scanJobTracking.isFailed, (failed) => {
+  if (!failed) return;
+  toast.add({
+    severity: 'error',
+    summary: 'Scan Failed',
+    detail: scanJobTracking.job.value?.message ?? 'SD card scan encountered an error.',
+    life: 5000,
+  });
+  currentScanJobId.value = null;
 });
 
 // Media Selection
@@ -123,7 +153,8 @@ function onImportDismiss() {
 
 async function handleScanSDCards() {
   try {
-    await scanSDCards();
+    const response = await scanSDCards();
+    currentScanJobId.value = response.job_id;
 
     toast.add({
       severity: 'info',
@@ -131,13 +162,6 @@ async function handleScanSDCards() {
       detail: 'Looking for new files...',
       life: 3000,
     });
-
-    // Scan creates a background job. We don't know exactly when it finishes,
-    // so invalidate both cards and files — TanStack will refetch after staleTime.
-    // For a tighter integration: track the scan job_id and invalidate on completion.
-    queryClient.invalidateQueries({ queryKey: SD_CARDS_QUERY_KEY });
-    queryClient.invalidateQueries({ queryKey: ['sd-files'] });
-
   } catch (e) {
     toast.add({
       severity: 'error',
@@ -146,6 +170,14 @@ async function handleScanSDCards() {
       life: 5000,
     });
   }
+}
+
+function handleSDSortChange(value: string) {
+  sdFilesManager.sortBy.value = value;
+}
+
+function handleClipSortChange(value: string) {
+  clipsManager.sortBy.value = value;
 }
 
 async function handleVolumeChange(volumeUid: string) {
@@ -308,6 +340,7 @@ async function handleExport() {
               :query="clipsManager.query.value"
               :selectedClips="clipsManager.selectedClips.value"
               :filters="clipsManager.filters"
+              :sortBy="clipsManager.sortBy.value"
               @select="onSelectClip"
               @update:selectedClips="clipsManager.setSelection"
               @delete-selected="handleDelete"
@@ -315,6 +348,7 @@ async function handleExport() {
               @delete="handleDelete"
               @go-to-import="handleGoToImport"
               @load="clipsManager.reload"
+              @sort-change="handleClipSortChange"
             />
 
             <ImportView
@@ -328,6 +362,7 @@ async function handleExport() {
               :query="sdFilesManager.query.value"
               :selectedFiles="sdFilesManager.selectedSDFiles.value"
               :currentImportJobId="currentImportJobId"
+              :sortBy="sdFilesManager.sortBy.value"
               @select="onSelectSDFile"
               @update:selectedFiles="sdFilesManager.setSelection"
               @import-complete="onImportComplete"
@@ -336,6 +371,7 @@ async function handleExport() {
               @scan-cards="handleScanSDCards"
               @import="handleImport"
               @load="sdFilesManager.reloadAll"
+              @sort-change="handleSDSortChange"
               ref="importViewRef"
             />
 

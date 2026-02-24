@@ -16,6 +16,7 @@ defineProps<{
     datePreset: DatePreset;
     dateRange:  [Date, Date] | null;
   };
+  sortBy: string;
 }>();
 
 const emit = defineEmits<{
@@ -27,6 +28,7 @@ const emit = defineEmits<{
   (e: 'delete'): void;
   (e: 'go-to-import'): void;
   (e: 'load'): void;
+  (e: 'sort-change', value: string): void;
 }>();
 </script>
 
@@ -38,6 +40,7 @@ const emit = defineEmits<{
     :selectedId="null"
     :query="query"
     :selectedItems="selectedClips"
+    :sortBy="sortBy"
     @select="emit('select', $event)"
     @update:selectedItems="emit('update:selectedClips', $event)"
     @selection-change="emit('selection-change', $event)"
@@ -46,5 +49,6 @@ const emit = defineEmits<{
     @export="emit('export')"
     @delete="emit('delete')"
     @go-to-import="emit('go-to-import')"
+    @sort-change="emit('sort-change', $event)"
   />
 </template>

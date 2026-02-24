@@ -17,14 +17,15 @@ const props = defineProps<{
   selectedId: number | null;
   currentVolumeUid: string;
   query: string;
+  sortBy: string;
 }>();
 
 const emit = defineEmits<{
   (e: 'select', payload: { file: SDFile; volumeUid: string }): void;
-  (e: 'update:selectedItems', files: SDFile[]): void;
   (e: 'selection-change', files: SDFile[]): void;
   (e: 'load'): void;
   (e: 'import'): void;
+  (e: 'sort-change', value: string): void;
 }>();
 
 const { viewMode, toggleViewMode } = useViewMode('sd-files-view-mode');
@@ -47,6 +48,10 @@ function onThumbnailError(fileId: number) {
 function onSelectFile(file: SDFile) {
   emit('select', { file, volumeUid: props.currentVolumeUid });
 }
+
+function onSortChange(value: string) {
+  emit('sort-change', value);
+}
 </script>
 
 <template>
@@ -68,6 +73,7 @@ function onSelectFile(file: SDFile) {
     @load="emit('load')"
     @toggle-view="toggleViewMode"
     @import="emit('import')"
+    @sort-change="onSortChange"
   >
     <!-- Item slot — changes based on viewMode -->
     <template #item="{ item: file, viewMode }">

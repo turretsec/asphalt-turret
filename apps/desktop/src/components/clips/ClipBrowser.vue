@@ -18,6 +18,7 @@ defineProps<{
   selectedId: number | null;
   filterMode?: string;
   filterDate?: string;
+  sortBy: string; 
 }>();
 
 const emit = defineEmits<{
@@ -47,10 +48,7 @@ const sortOptions: SortOption[] = [
   { label: 'Name (Z-A)', value: 'name-desc' },
 ];
 
-const sortBy = ref('date-desc');  // Default sort
-
 function onSortChange(value: string) {
-  sortBy.value = value;
   emit('sort-change', value);
 }
 </script>

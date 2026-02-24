@@ -16,6 +16,7 @@ const props = defineProps<{
   availableCards: SDCard[];
   query: string;
   selectedFiles: SDFile[];
+  sortBy: string;
 
   // Job tracking
   currentImportJobId?: number | null;
@@ -31,6 +32,7 @@ const emit = defineEmits<{
   (e: 'volume-change', volumeUid: string): void;
   (e: 'scan-cards'): void;
   (e: 'load'): void;
+  (e: 'sort-change', sortBy: string): void;
 }>();
 
 // Used to force re-mount of SDFileBrowser when card changes
@@ -93,11 +95,13 @@ const connectedCards = computed(() => props.availableCards.filter(c => c.is_conn
         :currentVolumeUid="currentVolumeUid"
         :query="query"
         :selectedItems="selectedFiles"
+        :sort-by="sortBy"
         @select="emit('select', $event)"
         @update:selectedItems="emit('update:selectedFiles', $event)"
         @selection-change="emit('selection-change', $event)"
         @load="emit('load')"
         @import="emit('import')"
+        @sort-change="emit('sort-change', $event)"
       />
     </div>
 
